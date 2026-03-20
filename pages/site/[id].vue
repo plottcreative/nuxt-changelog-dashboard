@@ -22,7 +22,8 @@ const id = route.params.id as string
 const headers = process.server ? useRequestHeaders(['cookie']) : undefined
 
 // --- Auth ---
-const me = await $fetch<{ authenticated: boolean; user?: any }>('/api/auth/me', { headers }).catch(() => ({ authenticated: false }))
+const { ensure } = useAuth()
+const me = await ensure()
 const authed = !!me?.authenticated
 const my = authed ? me.user : null
 

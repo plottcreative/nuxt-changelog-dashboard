@@ -6,11 +6,14 @@ const password = ref('')
 const errorMsg = ref<string|null>(null)
 const loading = ref(false)
 
+const { ensure } = useAuth()
+
 async function submit() {
   loading.value = true
   errorMsg.value = null
   try {
     await $fetch('/api/auth/login', { method: 'POST', body: { email: email.value, password: password.value } })
+    await ensure(true) // force-refresh cached auth state
     return navigateTo('/dashboard')
   } catch (e:any) {
     errorMsg.value = e?.data?.message || e?.message || 'Login failed'
