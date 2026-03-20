@@ -15,14 +15,16 @@ export default defineNuxtConfig({
     ciWebhookToken: process.env.CI_WEBHOOK_TOKEN,
   },
   devtools: {
-    // Only enable devtools in non-production environments
-    enabled: process.env.NODE_ENV !== 'production',
-    timeline: {
-      enabled: process.env.NODE_ENV !== 'production'
-    }
+    enabled: false,
   },
-  // Turn off debug by default for production
-  debug: process.env.NODE_ENV !== 'production',
+  debug: false,
+  experimental: {
+    defaults: {
+      nuxtLink: {
+        prefetch: false,
+      },
+    },
+  },
   app: {
     head: {
       title: 'PLOTT Maintenance'

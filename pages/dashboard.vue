@@ -85,20 +85,11 @@ function hostOf(s: any) {
   }
 }
 function favPrimary(host: string) {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`
-}
-function favFallback(host: string) {
   return `https://icons.duckduckgo.com/ip3/${host}.ico`
 }
-function onFavError(e: Event, id: string, host: string) {
-  const img = e.target as HTMLImageElement
+function onFavError(e: Event, id: string) {
   const st = (favState[id] ||= { triedFallback: false, hide: false })
-  if (!st.triedFallback && host) {
-    st.triedFallback = true
-    img.src = favFallback(host)
-  } else {
-    st.hide = true
-  }
+  st.hide = true
 }
 
 // Sites filter
@@ -1250,14 +1241,11 @@ const envBadge = (env?: string) => {
                 >
                   <img
                     v-if="hostOf(s) && !favState[s.id]?.hide"
-                    :src="
-                      favState[s.id]?.triedFallback
-                        ? favFallback(hostOf(s))
-                        : favPrimary(hostOf(s))
-                    "
-                    @error="e => onFavError(e, s.id, hostOf(s))"
+                    :src="favPrimary(hostOf(s))"
+                    @error="e => onFavError(e, s.id)"
                     :alt="s.name || s.id"
                     class="h-7 w-7"
+                    loading="lazy"
                   />
                   <span
                     v-else
