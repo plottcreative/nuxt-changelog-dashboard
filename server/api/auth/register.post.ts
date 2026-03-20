@@ -35,7 +35,12 @@ export default defineEventHandler( async (event) => {
   }
 
   const result = await db.collection('users').insertOne(user as any)
-  await setUserSession(event, String(result.insertedId), 'admin', 30)
+  await setUserSession(event, {
+    id: String(result.insertedId),
+    email: user.email,
+    name: user.name,
+    role: user.role as 'admin',
+  })
 
   return { ok: true, user: { id: String(result.insertedId), email: user.email, name: user.name, role: user.role } }
 })

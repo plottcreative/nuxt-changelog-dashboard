@@ -22,6 +22,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  if (!stored) throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
+
   const ok = verifyPassword(password, stored)
   if (!ok) throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
 
