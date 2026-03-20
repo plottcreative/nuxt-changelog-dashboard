@@ -86,7 +86,7 @@ function moreChangelogs(){ clLimit.value += 20 }
 
               <tbody v-if="(entry.plugins && entry.plugins.length) || (!entry.summary?.has_changes)" class="divide-y">
                 <tr v-for="p in (entry.plugins || [])" :key="'all-'+p.name">
-                  <td class="td font-medium">{{ p.name }}</td>
+                  <td class="td font-medium" :title="p.name">{{ p.displayName || p.name }}</td>
                   <td class="td"><code>{{ p.old ?? (p.status==='added'||p.status==='current' ? '—' : '') }}</code></td>
                   <td class="td"><code>{{ p.new ?? (p.status==='removed' ? '—' : '') }}</code></td>
                   <td class="td">
@@ -106,25 +106,25 @@ function moreChangelogs(){ clLimit.value += 20 }
 
               <tbody v-else class="divide-y">
                 <tr v-for="p in entry.changes?.updated || []" :key="'u-'+p.name">
-                  <td class="td font-medium">{{ p.name }}</td>
+                  <td class="td font-medium" :title="p.name">{{ p.displayName || p.name }}</td>
                   <td class="td"><code>{{ p.old }}</code></td>
                   <td class="td"><code>{{ p.new }}</code></td>
                   <td class="td"><span class="pill pill-blue">updated</span></td>
                 </tr>
                 <tr v-for="p in entry.changes?.added || []" :key="'a-'+p.name">
-                  <td class="td font-medium text-emerald-700">{{ p.name }}</td>
+                  <td class="td font-medium text-emerald-700" :title="p.name">{{ p.displayName || p.name }}</td>
                   <td class="td"><em>—</em></td>
                   <td class="td"><code>{{ p.new }}</code></td>
                   <td class="td"><span class="pill pill-emerald">added</span></td>
                 </tr>
                 <tr v-for="p in entry.changes?.removed || []" :key="'r-'+p.name">
-                  <td class="td font-medium text-rose-700">{{ p.name }}</td>
+                  <td class="td font-medium text-rose-700" :title="p.name">{{ p.displayName || p.name }}</td>
                   <td class="td"><code>{{ p.old }}</code></td>
                   <td class="td"><em>—</em></td>
                   <td class="td"><span class="pill pill-rose">removed</span></td>
                 </tr>
                 <tr v-for="p in entry.changes?.unchanged || []" :key="'n-'+p.name">
-                  <td class="td font-medium text-gray-700">{{ p.name }}</td>
+                  <td class="td font-medium text-gray-700" :title="p.name">{{ p.displayName || p.name }}</td>
                   <td class="td"><code>{{ p.version }}</code></td>
                   <td class="td"><code>{{ p.version }}</code></td>
                   <td class="td"><span class="pill pill-gray">unchanged</span></td>

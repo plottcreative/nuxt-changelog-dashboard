@@ -341,6 +341,9 @@ async function testSecurityScan(url: string): Promise<SecurityCheck[]> {
 }
 
 export default defineEventHandler(async (event: any) => {
+  const { requireRole } = await import('../../utils/session')
+  await requireRole(event, ['admin', 'manager'])
+
   const body = await readBody(event)
   
   if (!body.url) {

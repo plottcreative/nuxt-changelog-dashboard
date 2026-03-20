@@ -104,8 +104,6 @@ onMounted(() => {
   document.addEventListener('click', onDocClick)
   document.addEventListener('keydown', onDocKey)
 
-  console.log('site (client):', site.value)
-  console.log('groupEmail:', site.value?.groupEmail)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)

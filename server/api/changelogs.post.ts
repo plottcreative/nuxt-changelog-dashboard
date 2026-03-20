@@ -1,7 +1,43 @@
 // server/api/changelogs.post.ts
 import { defineEventHandler, createError, getHeader, readRawBody } from 'h3'
 import crypto from 'node:crypto'
+import { z } from 'zod'
 import { getDb } from '../utils/mongo'
+
+const packageChange = z.object({
+  name: z.string(),
+  old: z.string().optional(),
+  new: z.string().optional(),
+})
+
+const changelogSchema = z.object({
+  site: z.object({
+    id: z.string().min(1),
+    name: z.string().optional(),
+    env: z.string().optional().default('production'),
+  }),
+  run: z.object({
+    timestamp: z.string(),
+    php_version: z.string().optional(),
+    composer: z.string().optional(),
+    git_sha: z.string().optional(),
+    git_branch: z.string().optional(),
+    ci_url: z.string().optional(),
+    commit: z.string().optional(),
+    branch: z.string().optional(),
+  }),
+  summary: z.object({
+    updated_count: z.number().optional(),
+    added_count: z.number().optional(),
+    removed_count: z.number().optional(),
+    has_changes: z.boolean().optional(),
+  }).optional(),
+  changes: z.object({
+    updated: z.array(packageChange).optional().default([]),
+    added: z.array(packageChange).optional().default([]),
+    removed: z.array(packageChange).optional().default([]),
+  }).optional(),
+})
 
 export default defineEventHandler(async (event) => {
   // 1) Bearer
@@ -25,16 +61,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Invalid signature' })
   }
 
-  // 3) Parse & basic shape check
-  const payload = JSON.parse(raw)
-  if (!payload?.site?.id || !payload?.run?.timestamp) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid payload' })
+  // 3) Parse & validate
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch { throw createError({ statusCode: 400, statusMessage: 'Invalid JSON' }) }
+  const result = changelogSchema.safeParse(parsed)
+  if (!result.success) {
+    throw createError({ statusCode: 422, statusMessage: 'Invalid payload', data: result.error.flatten() })
   }
 
-  // 4) Insert (or upsert) into Mongo
+  // 4) Insert validated data only
   const db = await getDb()
   await db.collection('changelogs').insertOne({
-    ...payload,
+    ...result.data,
     receivedAt: new Date()
   })
 

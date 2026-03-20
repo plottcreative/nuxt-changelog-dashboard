@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     email,
     name: name || email.split('@')[0],
     role,
-    password: hashPassword(password),
+    passwordHash: hashPassword(password),
     createdAt: new Date()
   }
   const result = await db.collection('users').insertOne(user as any)

@@ -472,33 +472,20 @@ export default defineEventHandler(async (event) => {
     })
   }
   
-  // Run security checks
-  const checks: SecurityCheck[] = []
+  // Run security checks in parallel
+  const checkMap: Record<string, (url: string) => Promise<SecurityCheck>> = {
+    https: checkHttps,
+    headers: checkSecurityHeaders,
+    cookies: checkCookieSecurity,
+    forms: checkFormSecurity,
+    links: checkExternalLinks,
+    content: checkContentSecurity,
+  }
   
   try {
-    if (validChecks.includes('https')) {
-      checks.push(await checkHttps(targetUrl))
-    }
-    
-    if (validChecks.includes('headers')) {
-      checks.push(await checkSecurityHeaders(targetUrl))
-    }
-    
-    if (validChecks.includes('cookies')) {
-      checks.push(await checkCookieSecurity(targetUrl))
-    }
-    
-    if (validChecks.includes('forms')) {
-      checks.push(await checkFormSecurity(targetUrl))
-    }
-    
-    if (validChecks.includes('links')) {
-      checks.push(await checkExternalLinks(targetUrl))
-    }
-    
-    if (validChecks.includes('content')) {
-      checks.push(await checkContentSecurity(targetUrl))
-    }
+    const checks: SecurityCheck[] = await Promise.all(
+      validChecks.map(check => checkMap[check](targetUrl))
+    )
     
     // Calculate overall status and score
     const score = calculateSecurityScore(checks)
