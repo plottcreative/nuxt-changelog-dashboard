@@ -1,13 +1,10 @@
 export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
-  nitro: {
-
-  },
+  nitro: {},
   routeRules: {
     '/api/**': { runtime: 'nodejs' }
   },
-  // app head + performance hints
-   runtimeConfig: {
+  runtimeConfig: {
     POSTMARK_TOKEN: process.env.POSTMARK_TOKEN,
     POSTMARK_MESSAGE_STREAM: process.env.POSTMARK_MESSAGE_STREAM || 'outbound',
     MAIL_FROM: process.env.MAIL_FROM,
@@ -24,6 +21,7 @@ export default defineNuxtConfig({
         prefetch: false,
       },
     },
+    viewTransition: true,
   },
   app: {
     head: {

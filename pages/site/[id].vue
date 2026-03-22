@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch, watchEffect, defineAsyncComponent, Suspense } from 'vue'
-import { useRoute, useRouter, useFetch, useRequestHeaders } from '#imports'
+import { useRoute, useRouter, useRequestHeaders } from '#imports'
 import type { SiteDoc, MaintItem, TabKey, MaintStatus, PrimaryContact } from '~/composables/site'
 import { STATUS_LIST } from '~/composables/site'
 import SiteHeader from '~/components/site/SiteHeader.vue'
@@ -10,16 +10,25 @@ import ChangelogPanel from '~/components/site/ChangelogPanel.vue'
 import FormsPanel from '~/components/site/FormsPanel.vue'
 import NotesPanel from '~/components/site/NotesPanel.vue'
 import DetailsPanel from '~/components/site/DetailsPanel.vue'
-// Lazy-load SecurityPanel to reduce initial bundle size
 const SecurityPanel = defineAsyncComponent(() => import('~/components/site/SecurityPanel.vue'))
 import '~/assets/site.css'
 
-import { CalendarIcon, DocumentTextIcon, ClipboardDocumentListIcon, PencilSquareIcon, InformationCircleIcon, ShieldCheckIcon } from '@heroicons/vue/20/solid'
+import {
+  CalendarIcon,
+  DocumentTextIcon,
+  ClipboardDocumentListIcon,
+  PencilSquareIcon,
+  InformationCircleIcon,
+  ShieldCheckIcon,
+  ArrowPathIcon  // new refresh icon
+} from '@heroicons/vue/20/solid'
 
+// --- use site store ---
+import { useSiteStore } from '~/composables/useSiteStore'
+const store = useSiteStore()
 const route = useRoute()
 const router = useRouter()
 const id = route.params.id as string
-const headers = process.server ? useRequestHeaders(['cookie']) : undefined
 
 // --- Auth ---
 const { ensure } = useAuth()
@@ -27,20 +36,27 @@ const me = await ensure()
 const authed = !!me?.authenticated
 const my = authed ? me.user : null
 
-// Site & maintenance
-const { data, pending, error, refresh: refreshSite } = await useFetch<{ site: SiteDoc; items: MaintItem[] }>(
-  `/api/scheduler/sites/${id}`, { headers, key: `site-v2-${id}` }
-)
-const site  = computed(() => data.value?.site)
-const items = computed(() => (data.value?.items || []))
+// --- Fetch data from store (SSR-safe) ---
+// Wait for both site data and user directory
+await store.fetchUserDirectory()
+const { site, items, latestCi, pending, error } = store.getReactiveSiteData(id)
+await store.fetchSiteData(id)  // first fetch (cached on subsequent visits)
 
-// === User directory (for resolving "by" to a display name) ===
-const { data: directoryData } = await useFetch<Array<{ id?: string; name?: string; email?: string }>>(
-  '/api/users/directory', { headers, key: `users-dir` }
-)
-const userDirectory = computed(() => directoryData.value || [])
+// User directory from store
+const userDirectory = store.userDirectory
 
-// Tabs
+// --- Refresh logic ---
+const refreshing = ref(false)
+async function refresh() {
+  refreshing.value = true
+  try {
+    await store.fetchSiteData(id, true)  // force re-fetch
+  } finally {
+    refreshing.value = false
+  }
+}
+
+// --- Tabs and helpers (unchanged) ---
 const TABS: { key: TabKey, label: string }[] = [
   { key: 'calendar', label: 'Calendar' },
   { key: 'changelog', label: 'Changelog' },
@@ -50,14 +66,14 @@ const TABS: { key: TabKey, label: string }[] = [
   { key: 'details', label: 'Details' },
 ]
 const tab = ref<TabKey>('calendar')
-const isMobileNavOpen = ref(false) // State for mobile tab dropdown
+const isMobileNavOpen = ref(false)
 const activeTabLabel = computed(() => TABS.find(t => t.key === tab.value)?.label || 'Navigation')
 function selectTab(newTab: TabKey) {
   tab.value = newTab
   isMobileNavOpen.value = false
 }
 
-// ----- DISPLAY HELPERS -----
+// --- Display helpers (unchanged) ---
 const displayWebsiteUrl = computed(() => (site.value as any)?.websiteUrl || (site.value as any)?.url || '')
 const displayGitUrl = computed(() => site.value?.gitUrl || '')
 const displayContact = computed<PrimaryContact | null>(() => site.value?.primaryContact || null)
@@ -65,13 +81,12 @@ const renewMonthName = computed(() => {
   const month = (site.value?.renewMonth || 1) - 1
   return new Date(2000, Math.max(0, Math.min(11, month)), 1).toLocaleString(undefined, { month: 'long' })
 })
-// All authenticated users can change status and trigger notifications
 const canManageSite = computed(() => authed)
 const counts = computed(() => ({
   calendar: items.value.length, changelog: undefined, forms: undefined, notes: undefined
 }))
 
-// ===== Interactions & Shortcuts =====
+// --- Keyboard shortcuts (replace refreshSite with refresh) ---
 const chord = reactive({ waiting: false, timer: 0 as any })
 const compact = ref(false)
 
@@ -91,7 +106,7 @@ function handleKeydown(e: KeyboardEvent){
     const k = m[e.key.toLowerCase()]; if (k) { tab.value = k; e.preventDefault() }
     chord.waiting = false; return
   }
-  if (e.key === 'r') { refreshSite(); e.preventDefault(); }
+  if (e.key === 'r') { refresh(); e.preventDefault(); }  // ← now uses store refresh
   if (e.key === 'e') { tab.value = 'details'; e.preventDefault(); }
   if (e.key >= '1' && e.key <= '6') {
     const map: Record<string, TabKey> = { '1':'calendar','2':'changelog','3':'forms','4':'notes','5':'security','6':'details' }
@@ -104,7 +119,6 @@ onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
   document.addEventListener('click', onDocClick)
   document.addEventListener('keydown', onDocKey)
-
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
@@ -113,27 +127,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onDocKey)
 })
 
-// CI badge
-const latestCi = ref<any>(null)
-const repoSlug = computed(() => {
-  const url = displayGitUrl.value || ''
-  if (!url) return ''
-  try { return new URL(url).pathname.replace(/^\//, '').replace(/\.git$/, '') }
-  catch {
-    const m = url.match(/github\.com[:/](.+?)(?:\.git)?$/i)
-    return m ? m[1] : ''
-  }
-})
-watch([repoSlug, () => site.value?.env], async ([slug, env]) => {
-  if (!slug) { latestCi.value = null; return }
-  latestCi.value = await $fetch('/api/ci/latest', { query: { repo: slug, env: env || 'production' } }).catch(() => null)
-}, { immediate: true })
-
-// ====== Actions passed down ======
-// All logged-in users can change status and trigger notifications
+// --- Actions (replace refreshSite with refresh) ---
 async function setItemStatus(ev, next) {
   if (!canManageSite.value) return
-  // Status endpoint handles history tracking and sends email notification to groupEmail
   await $fetch('/api/scheduler/maintenance/status', {
     method: 'PATCH',
     body: {
@@ -144,15 +140,13 @@ async function setItemStatus(ev, next) {
       from: ev.status ?? null,
       by: my ? { id: my.id, name: my.name, email: my.email } : null
     },
-    headers
+    headers: process.server ? useRequestHeaders(['cookie']) : undefined
   }).catch((e) => { console.error('status update failed:', e) })
-
-  await refreshSite()
+  await refresh()  // refresh after status change
 }
 
 async function recordStatusChange(payload: any) {
-  // Status updates are now handled by setItemStatus which triggers notifications
-  await refreshSite()
+  await refresh()
 }
 function copyToClipboard(text: string){
   try { navigator.clipboard.writeText(text) } catch {}
@@ -166,26 +160,38 @@ function copyToClipboard(text: string){
       :class="compact ? 'py-2' : 'py-3 sm:py-4'"
     >
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <SiteHeader
-          :id="id"
-          :site="site"
-          :display-website-url="displayWebsiteUrl"
-          :display-git-url="displayGitUrl"
-          :renew-month-name="renewMonthName"
-          :latest-ci="latestCi"
-          @copy="copyToClipboard"
-        />
+        <div class="flex items-center justify-between">
+          <SiteHeader
+            :id="id"
+            :site="site"
+            :display-website-url="displayWebsiteUrl"
+            :display-git-url="displayGitUrl"
+            :renew-month-name="renewMonthName"
+            :latest-ci="latestCi"
+            @copy="copyToClipboard"
+          />
+          <!-- Refresh button -->
+          <button
+            @click="refresh"
+            :disabled="refreshing"
+            class="ml-4 inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-black/5 transition hover:bg-slate-50 disabled:opacity-50"
+            title="Refresh site data (r)"
+          >
+            <ArrowPathIcon class="h-4 w-4" :class="{ 'animate-spin': refreshing }" />
+            <span class="hidden sm:inline">Refresh</span>
+          </button>
+        </div>
 
         <div class="mt-4">
-            <div class="hidden sm:inline-flex items-center gap-1 rounded-2xl border border-black/5 bg-slate-50/80 p-1 shadow-sm">
-              <TabButton label="Calendar"  :active="tab==='calendar'"  @click="selectTab('calendar')"  :count="counts.calendar"  :icon="CalendarIcon"/>
-              <TabButton label="Changelog" :active="tab==='changelog'" @click="selectTab('changelog')" :count="counts.changelog" :icon="DocumentTextIcon"/>
-              <TabButton label="Forms"     :active="tab==='forms'"     @click="selectTab('forms')"     :count="counts.forms"     :icon="ClipboardDocumentListIcon"/>
-              <TabButton label="Notes"     :active="tab==='notes'"     @click="selectTab('notes')"     :count="counts.notes"     :icon="PencilSquareIcon"/>
-              <TabButton label="Security"  :active="tab==='security'"  @click="selectTab('security')"  :icon="ShieldCheckIcon"/>
-              <TabButton label="Details"   :active="tab==='details'"   @click="selectTab('details')"   :icon="InformationCircleIcon"/>
-            </div>
-
+          <!-- Tabs (unchanged) -->
+          <div class="hidden sm:inline-flex items-center gap-1 rounded-2xl border border-black/5 bg-slate-50/80 p-1 shadow-sm">
+            <TabButton label="Calendar"  :active="tab==='calendar'"  @click="selectTab('calendar')"  :count="counts.calendar"  :icon="CalendarIcon"/>
+            <TabButton label="Changelog" :active="tab==='changelog'" @click="selectTab('changelog')" :count="counts.changelog" :icon="DocumentTextIcon"/>
+            <TabButton label="Forms"     :active="tab==='forms'"     @click="selectTab('forms')"     :count="counts.forms"     :icon="ClipboardDocumentListIcon"/>
+            <TabButton label="Notes"     :active="tab==='notes'"     @click="selectTab('notes')"     :count="counts.notes"     :icon="PencilSquareIcon"/>
+            <TabButton label="Security"  :active="tab==='security'"  @click="selectTab('security')"  :icon="ShieldCheckIcon"/>
+            <TabButton label="Details"   :active="tab==='details'"   @click="selectTab('details')"   :icon="InformationCircleIcon"/>
+          </div>
           <div class="sm:hidden relative" data-popover-root>
             <button @click="isMobileNavOpen = !isMobileNavOpen" class="mobile-tab-dropdown-btn">
               <span>{{ activeTabLabel }}</span>
@@ -206,7 +212,7 @@ function copyToClipboard(text: string){
       <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/10 to-transparent"></div>
     </header>
 
-    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:px-8 space-y-6 md:space-y-8 ">
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:px-8 space-y-6 md:space-y-8">
       <div v-if="pending" class="rounded-2xl border bg-white p-6 shadow-sm">
         <div class="animate-pulse space-y-3">
           <div class="h-4 w-40 bg-slate-200 rounded"></div>
@@ -232,21 +238,14 @@ function copyToClipboard(text: string){
           </div>
         </template>
       </Suspense>
-      <DetailsPanel v-show="tab==='details'" :id="id" :site="site" :can-manage-site="canManageSite" @saved="refreshSite" @deleted="(to)=>router.push(to)" />
+      <DetailsPanel v-show="tab==='details'" :id="id" :site="site" :can-manage-site="canManageSite" @saved="refresh" @deleted="(to)=>router.push(to)" />
     </div>
   </div>
 </template>
 
 <style scoped>
-.kbd {
-  @apply inline-block rounded border border-slate-300 bg-slate-200/50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600;
-}
-.mobile-tab-dropdown-btn {
-  @apply inline-flex items-center justify-between w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-800
-         shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors;
-}
-.mobile-tab-item {
-  @apply block w-full px-4 py-2 text-left text-sm text-slate-700
-         hover:bg-slate-100 hover:text-slate-900;
-}
+/* existing styles unchanged */
+.kbd { @apply inline-block rounded border border-slate-300 bg-slate-200/50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600; }
+.mobile-tab-dropdown-btn { @apply inline-flex items-center justify-between w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors; }
+.mobile-tab-item { @apply block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900; }
 </style>
