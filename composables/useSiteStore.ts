@@ -1,5 +1,6 @@
 // composables/useSiteStore.ts
 import { useState, useRequestHeaders } from '#imports'
+import { computed } from 'vue'
 import type { SiteDoc, MaintItem } from '~/composables/site'
 
 interface SiteCacheEntry {
@@ -17,13 +18,12 @@ interface SiteData {
 }
 
 export function useSiteStore() {
-    // Global caches
     const siteCache = useState<Record<string, SiteCacheEntry>>('site-cache', () => ({}))
     const userDirectory = useState<any[]>('user-directory', () => [])
     const userDirectoryPending = useState<boolean>('user-directory-pending', () => false)
     const userDirectoryError = useState<any>('user-directory-error', () => null)
 
-    // Helper to get or create a cache entry
+    // Helper: always returns a fresh object to trigger reactivity
     function getCacheEntry(id: string): SiteCacheEntry {
         if (!siteCache.value[id]) {
             siteCache.value[id] = {
@@ -38,10 +38,9 @@ export function useSiteStore() {
         return siteCache.value[id]
     }
 
-    // Fetch user directory once globally
     async function fetchUserDirectory(force = false) {
         if (!force && userDirectory.value.length > 0) return userDirectory.value
-        if (userDirectoryPending.value) return // already fetching
+        if (userDirectoryPending.value) return
         userDirectoryPending.value = true
         userDirectoryError.value = null
         try {
@@ -57,22 +56,30 @@ export function useSiteStore() {
         }
     }
 
-    // Fetch site data (site + maintenance items) and CI badge
     async function fetchSiteData(id: string, force = false) {
         const entry = getCacheEntry(id)
+
+        // If not forcing and already fetched, return cached data
         if (!force && entry.fetchedAt !== null) {
+            console.log(`[cache] Using cached data for ${id}`)
             return { site: entry.site, items: entry.items, latestCi: entry.latestCi }
         }
 
+        console.log(`[cache] Fetching fresh data for ${id}, force=${force}`)
         entry.pending = true
         entry.error = null
+        // Force reactivity by reassigning the entire entry
+        siteCache.value[id] = { ...entry }
+
         try {
             const headers = process.server ? useRequestHeaders(['cookie']) : undefined
             const data = await $fetch<SiteData>(`/api/scheduler/sites/${id}`, { headers })
+
+            // Update entry
             entry.site = data.site
             entry.items = data.items
 
-            // Fetch CI badge if repo slug is available
+            // CI badge
             const repoSlug = getRepoSlug(data.site)
             if (repoSlug) {
                 const env = (data.site as any)?.env || 'production'
@@ -84,18 +91,22 @@ export function useSiteStore() {
 
             entry.fetchedAt = Date.now()
             entry.pending = false
+
+            // Force reactivity again
+            siteCache.value[id] = { ...entry }
+
             return { site: entry.site, items: entry.items, latestCi: entry.latestCi }
         } catch (err) {
             entry.error = err
             entry.pending = false
+            siteCache.value[id] = { ...entry }
             throw err
         }
     }
 
-    // Clear cache for a specific site
     function invalidate(id: string) {
         if (siteCache.value[id]) {
-            siteCache.value[id] = {
+            const freshEntry: SiteCacheEntry = {
                 site: null,
                 items: [],
                 latestCi: null,
@@ -103,10 +114,10 @@ export function useSiteStore() {
                 pending: false,
                 error: null,
             }
+            siteCache.value[id] = freshEntry
         }
     }
 
-    // Extract repo slug from git URL (same logic as before)
     function getRepoSlug(site: SiteDoc): string {
         const gitUrl = (site as any)?.gitUrl || ''
         if (!gitUrl) return ''
@@ -119,9 +130,16 @@ export function useSiteStore() {
         }
     }
 
-    // Return reactive getters for a specific site
     function getReactiveSiteData(id: string) {
-        const entry = computed(() => getCacheEntry(id))
+        // Use a computed that reacts to the whole entry object
+        const entry = computed(() => siteCache.value[id] ?? {
+            site: null,
+            items: [],
+            latestCi: null,
+            fetchedAt: null,
+            pending: true, // treat missing as pending
+            error: null,
+        })
         return {
             site: computed(() => entry.value.site),
             items: computed(() => entry.value.items),
@@ -136,6 +154,6 @@ export function useSiteStore() {
         fetchSiteData,
         invalidate,
         getReactiveSiteData,
-        userDirectory: readonly(userDirectory),
+        userDirectory: computed(() => userDirectory.value),
     }
 }

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, reactive, ref, watch, watchEffect, defineAsyncComponent, Suspense } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter, useRequestHeaders } from '#imports'
-import type { SiteDoc, MaintItem, TabKey, MaintStatus, PrimaryContact } from '~/composables/site'
-import { STATUS_LIST } from '~/composables/site'
+import type { SiteDoc, MaintItem, TabKey, PrimaryContact } from '~/composables/site'
 import SiteHeader from '~/components/site/SiteHeader.vue'
 import TabButton from '~/components/site/TabButton.vue'
 import CalendarPanel from '~/components/site/CalendarPanel.vue'
@@ -12,7 +11,7 @@ import NotesPanel from '~/components/site/NotesPanel.vue'
 import DetailsPanel from '~/components/site/DetailsPanel.vue'
 const SecurityPanel = defineAsyncComponent(() => import('~/components/site/SecurityPanel.vue'))
 import '~/assets/site.css'
-
+import { useGlobalLoading } from '~/composables/useGlobalLoading'
 import {
   CalendarIcon,
   DocumentTextIcon,
@@ -20,43 +19,54 @@ import {
   PencilSquareIcon,
   InformationCircleIcon,
   ShieldCheckIcon,
-  ArrowPathIcon  // new refresh icon
+  ArrowPathIcon
 } from '@heroicons/vue/20/solid'
 
-// --- use site store ---
 import { useSiteStore } from '~/composables/useSiteStore'
+
 const store = useSiteStore()
 const route = useRoute()
 const router = useRouter()
 const id = route.params.id as string
 
-// --- Auth ---
+const loading = ref(true)
+
+const { startLoading, stopLoading } = useGlobalLoading()
+
+// When we start fetching data, tell the global loader to stay on
+const fetchData = async (force = false) => {
+  startLoading() // global spinner appears
+  loading.value = true
+  const minSpinner = new Promise(resolve => setTimeout(resolve, 300))
+  try {
+    await Promise.all([store.fetchSiteData(id, force), minSpinner])
+  } finally {
+    loading.value = false
+    stopLoading() // global spinner hides
+  }
+}
+
 const { ensure } = useAuth()
 const me = await ensure()
 const authed = !!me?.authenticated
 const my = authed ? me.user : null
 
-// --- Fetch data from store (SSR-safe) ---
-// Wait for both site data and user directory
 await store.fetchUserDirectory()
-const { site, items, latestCi, pending, error } = store.getReactiveSiteData(id)
-await store.fetchSiteData(id)  // first fetch (cached on subsequent visits)
+const { site, items, latestCi, error } = store.getReactiveSiteData(id)
 
-// User directory from store
-const userDirectory = store.userDirectory
+if (process.server) {
+  await fetchData(false)
+} else {
+  fetchData(false)
+}
 
-// --- Refresh logic ---
 const refreshing = ref(false)
 async function refresh() {
   refreshing.value = true
-  try {
-    await store.fetchSiteData(id, true)  // force re-fetch
-  } finally {
-    refreshing.value = false
-  }
+  await fetchData(true)
+  refreshing.value = false
 }
 
-// --- Tabs and helpers (unchanged) ---
 const TABS: { key: TabKey, label: string }[] = [
   { key: 'calendar', label: 'Calendar' },
   { key: 'changelog', label: 'Changelog' },
@@ -73,7 +83,6 @@ function selectTab(newTab: TabKey) {
   isMobileNavOpen.value = false
 }
 
-// --- Display helpers (unchanged) ---
 const displayWebsiteUrl = computed(() => (site.value as any)?.websiteUrl || (site.value as any)?.url || '')
 const displayGitUrl = computed(() => site.value?.gitUrl || '')
 const displayContact = computed<PrimaryContact | null>(() => site.value?.primaryContact || null)
@@ -86,7 +95,6 @@ const counts = computed(() => ({
   calendar: items.value.length, changelog: undefined, forms: undefined, notes: undefined
 }))
 
-// --- Keyboard shortcuts (replace refreshSite with refresh) ---
 const chord = reactive({ waiting: false, timer: 0 as any })
 const compact = ref(false)
 
@@ -106,7 +114,7 @@ function handleKeydown(e: KeyboardEvent){
     const k = m[e.key.toLowerCase()]; if (k) { tab.value = k; e.preventDefault() }
     chord.waiting = false; return
   }
-  if (e.key === 'r') { refresh(); e.preventDefault(); }  // ← now uses store refresh
+  if (e.key === 'r') { refresh(); e.preventDefault(); }
   if (e.key === 'e') { tab.value = 'details'; e.preventDefault(); }
   if (e.key >= '1' && e.key <= '6') {
     const map: Record<string, TabKey> = { '1':'calendar','2':'changelog','3':'forms','4':'notes','5':'security','6':'details' }
@@ -127,7 +135,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onDocKey)
 })
 
-// --- Actions (replace refreshSite with refresh) ---
 async function setItemStatus(ev, next) {
   if (!canManageSite.value) return
   await $fetch('/api/scheduler/maintenance/status', {
@@ -142,7 +149,7 @@ async function setItemStatus(ev, next) {
     },
     headers: process.server ? useRequestHeaders(['cookie']) : undefined
   }).catch((e) => { console.error('status update failed:', e) })
-  await refresh()  // refresh after status change
+  await refresh()
 }
 
 async function recordStatusChange(payload: any) {
@@ -170,7 +177,6 @@ function copyToClipboard(text: string){
             :latest-ci="latestCi"
             @copy="copyToClipboard"
           />
-          <!-- Refresh button -->
           <button
             @click="refresh"
             :disabled="refreshing"
@@ -183,7 +189,6 @@ function copyToClipboard(text: string){
         </div>
 
         <div class="mt-4">
-          <!-- Tabs (unchanged) -->
           <div class="hidden sm:inline-flex items-center gap-1 rounded-2xl border border-black/5 bg-slate-50/80 p-1 shadow-sm">
             <TabButton label="Calendar"  :active="tab==='calendar'"  @click="selectTab('calendar')"  :count="counts.calendar"  :icon="CalendarIcon"/>
             <TabButton label="Changelog" :active="tab==='changelog'" @click="selectTab('changelog')" :count="counts.changelog" :icon="DocumentTextIcon"/>
@@ -213,39 +218,44 @@ function copyToClipboard(text: string){
     </header>
 
     <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:px-8 space-y-6 md:space-y-8">
-      <div v-if="pending" class="rounded-2xl border bg-white p-6 shadow-sm">
-        <div class="animate-pulse space-y-3">
-          <div class="h-4 w-40 bg-slate-200 rounded"></div>
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            <div v-for="i in 6" :key="i" class="h-40 rounded-2xl border bg-slate-100"></div>
-          </div>
-        </div>
+      <div v-if="loading" class="flex justify-center items-center py-20">
+        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-slate-300 border-t-slate-600"></div>
       </div>
-      <div v-else-if="error" class="rounded-2xl border bg-white p-8 text-center text-sm text-red-600 shadow-sm">Failed to load site.</div>
-
-      <CalendarPanel v-show="tab==='calendar'" :items="items" :can-manage-site="canManageSite" :current-user="my ? { id: my.id, name: my.name, email: my.email } : undefined" :user-directory="userDirectory" :months-ahead="36" :months-behind="36" @set-status="setItemStatus" @status-change="recordStatusChange" />
-      <ChangelogPanel v-show="tab==='changelog'" :site-id="id" :env="site?.env || ''" />
-      <FormsPanel v-show="tab==='forms'" :site-id="id" :env="site?.env || ''" />
-      <NotesPanel v-show="tab==='notes'" :site-id="id" :env="site?.env" :authed="authed" :my="my" />
-      <Suspense v-if="tab === 'security'">
-        <SecurityPanel :site-id="id" :site-url="displayWebsiteUrl" :can-manage-site="canManageSite" />
-        <template #fallback>
-          <div class="rounded-2xl border bg-white p-6 shadow-sm">
-            <div class="animate-pulse space-y-4">
-              <div class="h-4 w-48 bg-slate-200 rounded"></div>
-              <div class="h-32 bg-slate-100 rounded-lg"></div>
+      <div v-else-if="error" class="rounded-2xl border bg-white p-8 text-center text-sm text-red-600 shadow-sm">
+        Failed to load site.
+      </div>
+      <template v-else>
+        <CalendarPanel v-show="tab==='calendar'" :items="items" :can-manage-site="canManageSite" :current-user="my ? { id: my.id, name: my.name, email: my.email } : undefined" :user-directory="store.userDirectory" :months-ahead="36" :months-behind="36" @set-status="setItemStatus" @status-change="recordStatusChange" />
+        <ChangelogPanel v-show="tab==='changelog'" :site-id="id" :env="site?.env || ''" />
+        <FormsPanel v-show="tab==='forms'" :site-id="id" :env="site?.env || ''" />
+        <NotesPanel v-show="tab==='notes'" :site-id="id" :env="site?.env" :authed="authed" :my="my" />
+        <Suspense v-if="tab === 'security'">
+          <SecurityPanel :site-id="id" :site-url="displayWebsiteUrl" :can-manage-site="canManageSite" />
+          <template #fallback>
+            <div class="rounded-2xl border bg-white p-6 shadow-sm">
+              <div class="animate-pulse space-y-4">
+                <div class="h-4 w-48 bg-slate-200 rounded"></div>
+                <div class="h-32 bg-slate-100 rounded-lg"></div>
+              </div>
             </div>
-          </div>
-        </template>
-      </Suspense>
-      <DetailsPanel v-show="tab==='details'" :id="id" :site="site" :can-manage-site="canManageSite" @saved="refresh" @deleted="(to)=>router.push(to)" />
+          </template>
+        </Suspense>
+        <DetailsPanel v-show="tab==='details'" :id="id" :site="site" :can-manage-site="canManageSite" @saved="refresh" @deleted="(to)=>router.push(to)" />
+      </template>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* existing styles unchanged */
-.kbd { @apply inline-block rounded border border-slate-300 bg-slate-200/50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600; }
-.mobile-tab-dropdown-btn { @apply inline-flex items-center justify-between w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors; }
-.mobile-tab-item { @apply block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900; }
+.kbd {
+  @apply inline-block rounded border border-slate-300 bg-slate-200/50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600;
+}
+.mobile-tab-dropdown-btn {
+  @apply inline-flex items-center justify-between w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-800
+         shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors;
+}
+.mobile-tab-item {
+  @apply block w-full px-4 py-2 text-left text-sm text-slate-700
+         hover:bg-slate-100 hover:text-slate-900;
+}
 </style>
