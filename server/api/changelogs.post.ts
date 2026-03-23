@@ -19,10 +19,10 @@ const changelogSchema = z.object({
   run: z.object({
     timestamp: z.string(),
     php_version: z.string().optional(),
-    composer: z.string().optional(),
+    composer: z.string().nullish(),
     git_sha: z.string().optional(),
     git_branch: z.string().optional(),
-    ci_url: z.string().optional(),
+    ci_url: z.string().nullish(),
     commit: z.string().optional(),
     branch: z.string().optional(),
   }),
