@@ -29,7 +29,10 @@ interface OverviewMaintItem {
   statusHistory?: StatusHistoryEntry[]
 }
 
-const { data, pending, error, refresh } = await useFetch('/api/scheduler/overview')
+const { data, pending, error, refresh } = await useFetch('/api/scheduler/overview', {
+  // Serve cached data instantly on back-nav / re-visit; still re-fetches in background
+  getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] || nuxtApp.static.data[key],
+})
 
 const tab = ref<'overview' | 'months' | 'sites'>('overview')
 const q = ref('')

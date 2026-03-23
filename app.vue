@@ -29,15 +29,15 @@ import { useGlobalLoading } from '~/composables/useGlobalLoading'
 const { isLoading, startLoading, stopLoading } = useGlobalLoading()
 const router = useRouter()
 const visible = ref(false)
-let showTimer: ReturnType<typeof setTimeout> | undefined
+let hideTimer: ReturnType<typeof setTimeout> | undefined
 
-// Delay showing the spinner so fast navigations (e.g. pressing back) never flash it
 watch(isLoading, (loading) => {
-  clearTimeout(showTimer)
+  clearTimeout(hideTimer)
   if (loading) {
-    showTimer = setTimeout(() => { visible.value = true }, 200)
+    visible.value = true
   } else {
-    visible.value = false
+    // Small delay before hiding so we don't flash off/on between route guard and page fetch
+    hideTimer = setTimeout(() => { visible.value = false }, 50)
   }
 })
 
@@ -47,8 +47,10 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach(() => {
+  // Safety-net: stop loading after a generous window so pages that manage
+  // their own loading (e.g. site/[id]) can call startLoading() before this fires.
   setTimeout(() => {
     stopLoading()
-  }, 100)
+  }, 400)
 })
 </script>

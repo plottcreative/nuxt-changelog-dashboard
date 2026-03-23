@@ -37,9 +37,8 @@ const { startLoading, stopLoading } = useGlobalLoading()
 const fetchData = async (force = false) => {
   startLoading() // global spinner appears
   loading.value = true
-  const minSpinner = new Promise(resolve => setTimeout(resolve, 300))
   try {
-    await Promise.all([store.fetchSiteData(id, force), minSpinner])
+    await store.fetchSiteData(id, force)
   } finally {
     loading.value = false
     stopLoading() // global spinner hides
