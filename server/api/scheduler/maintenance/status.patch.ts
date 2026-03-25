@@ -147,32 +147,32 @@ export default defineEventHandler(async (event) => {
 
     // Send email notifications for ALL status updates to group email
     const siteDoc = await db.collection('sites').findOne({ id: siteId })
-    
+    const runInBackground = (label: string, task: Promise<any>) => {
+      task.catch((error) => {
+        console.error(`[maintenance/status] ${label} failed:`, error)
+      })
+    }
+
     // Always send notification for any status change (not just to completed)
     if (siteDoc?.groupEmail && status !== prev) {
-      try {
-        await sendStatusUpdateEmail({
-          site: siteDoc,
-          siteId,
-          env,
-          date,
-          status,
-          previousStatus: prev,
-          updatedBy: by,
-          updatedAt: now,
-          db
-        })
-      } catch (emailError) {
-        console.error('[maintenance/status] Email notification failed:', emailError)
-        // Don't fail the status update if email fails
-      }
+      runInBackground('Group status email', sendStatusUpdateEmail({
+        site: siteDoc,
+        siteId,
+        env,
+        date,
+        status,
+        previousStatus: prev,
+        updatedBy: by,
+        updatedAt: now,
+        db
+      }))
     }
 
     // Send completion email when transitioning to Completed
     if (status === 'Completed' && prev !== 'Completed') {
       const fresh = await db.collection('maintenance').findOne({ _id: it._id })
       if (fresh && siteDoc) {
-        await sendCompletionEmail({ site: siteDoc, item: fresh })
+        runInBackground('Completion email', sendCompletionEmail({ site: siteDoc, item: fresh }))
       }
     }
 

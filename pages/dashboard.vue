@@ -8,6 +8,7 @@
     ChartBarIcon,
     ArrowRightIcon,
   } from '@heroicons/vue/24/outline';
+  import { useMutationSync } from '~/composables/useMutationSync';
 
   type MaintStatus =
     | 'To-Do'
@@ -58,6 +59,7 @@
   });
   const bulkRebuildResult = ref<any>(null);
   const bulkRebuildError = ref<string | null>(null);
+  const { syncAfterMutation } = useMutationSync();
 
   function ordinal(n: number) {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -388,6 +390,7 @@
       });
       bulkRebuildResult.value = result;
       bulkRebuildForm.confirmText = '';
+      syncAfterMutation({ affectsOverview: true });
       await refresh();
     } catch (e: any) {
       bulkRebuildError.value =

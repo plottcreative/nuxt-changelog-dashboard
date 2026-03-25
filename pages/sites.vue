@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { useMutationSync } from '~/composables/useMutationSync'
 
 type Form = {
   id: string
@@ -30,6 +31,7 @@ const loading = ref(false)
 const schedule = ref<any[] | null>(null)
 const scheduleErr = ref<string|null>(null)
 const scheduleLoading = ref(false)
+const { syncAfterMutation } = useMutationSync()
 
 /* ---------------- helpers ---------------- */
 const normalizeUrl = (v: string) => {
@@ -75,6 +77,7 @@ async function submit() {
       body
     })
     created.value = res
+    syncAfterMutation({ affectsOverview: true })
   } catch (e: any) {
     errorMsg.value = e?.data?.message || e?.message || 'Failed'
   } finally {

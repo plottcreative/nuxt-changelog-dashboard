@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, reactive, ref, defineAsyncComponent } from 'vue'
-import { useRoute, useRouter, clearNuxtData } from '#imports'
+import { useRoute, useRouter } from '#imports'
 import type { SiteDoc, MaintItem, TabKey, PrimaryContact, MaintStatus } from '~/composables/site'
 import SiteHeader from '~/components/site/SiteHeader.vue'
 import TabButton from '~/components/site/TabButton.vue'
@@ -23,8 +23,10 @@ import {
 } from '@heroicons/vue/20/solid'
 
 import { useSiteStore } from '~/composables/useSiteStore'
+import { useMutationSync } from '~/composables/useMutationSync'
 
 const store = useSiteStore()
+const { syncAfterMutation } = useMutationSync()
 const route = useRoute()
 const router = useRouter()
 const id = route.params.id as string
@@ -155,8 +157,17 @@ async function setItemStatus(ev: MaintItem, next: MaintStatus) {
     statusError.value = e?.data?.message || e?.message || 'Status update failed'
     return
   }
-  clearNuxtData('dashboard-overview')
+  syncAfterMutation({ affectsOverview: true })
   await refresh()
+}
+async function handleSiteSaved() {
+  syncAfterMutation({ affectsOverview: true, siteId: id, affectsSiteCache: true })
+  await refresh()
+}
+
+function handleSiteDeleted(to: string) {
+  syncAfterMutation({ affectsOverview: true, siteId: id, affectsSiteCache: true })
+  router.push(to)
 }
 
 function copyToClipboard(text: string){
@@ -248,7 +259,7 @@ function copyToClipboard(text: string){
             </div>
           </template>
         </Suspense>
-        <DetailsPanel v-show="tab==='details'" :id="id" :site="site" :can-manage-site="canManageSite" @saved="refresh" @deleted="(to)=>router.push(to)" />
+        <DetailsPanel v-show="tab==='details'" :id="id" :site="site" :can-manage-site="canManageSite" @saved="handleSiteSaved" @deleted="handleSiteDeleted" />
       </template>
     </div>
   </div>
