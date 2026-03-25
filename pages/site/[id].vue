@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, reactive, ref, defineAsyncComponent } from 'vue'
-import { useRoute, useRouter, useRequestHeaders } from '#imports'
-import type { SiteDoc, MaintItem, TabKey, PrimaryContact } from '~/composables/site'
+import { useRoute, useRouter, clearNuxtData } from '#imports'
+import type { SiteDoc, MaintItem, TabKey, PrimaryContact, MaintStatus } from '~/composables/site'
 import SiteHeader from '~/components/site/SiteHeader.vue'
 import TabButton from '~/components/site/TabButton.vue'
 import CalendarPanel from '~/components/site/CalendarPanel.vue'
@@ -134,26 +134,31 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onDocKey)
 })
 
-async function setItemStatus(ev, next) {
+const statusError = ref<string | null>(null)
+
+async function setItemStatus(ev: MaintItem, next: MaintStatus) {
   if (!canManageSite.value) return
-  await $fetch('/api/scheduler/maintenance/status', {
-    method: 'PATCH',
-    body: {
-      siteId: ev.site.id,
-      env: ev.site.env,
-      date: ev.date,
-      status: next,
-      from: ev.status ?? null,
-      by: my ? { id: my.id, name: my.name, email: my.email } : null
-    },
-    headers: process.server ? useRequestHeaders(['cookie']) : undefined
-  }).catch((e) => { console.error('status update failed:', e) })
+  statusError.value = null
+  try {
+    await $fetch('/api/scheduler/maintenance/status', {
+      method: 'PATCH',
+      body: {
+        siteId: ev.site.id,
+        env: ev.site.env,
+        date: ev.date,
+        status: next,
+        from: ev.status ?? null,
+        by: my ? { id: my.id, name: my.name, email: my.email } : null
+      }
+    })
+  } catch (e: any) {
+    statusError.value = e?.data?.message || e?.message || 'Status update failed'
+    return
+  }
+  clearNuxtData('dashboard-overview')
   await refresh()
 }
 
-async function recordStatusChange(payload: any) {
-  await refresh()
-}
 function copyToClipboard(text: string){
   try { navigator.clipboard.writeText(text) } catch {}
 }
@@ -224,7 +229,11 @@ function copyToClipboard(text: string){
         Failed to load site.
       </div>
       <template v-else>
-        <CalendarPanel v-show="tab==='calendar'" :items="items" :can-manage-site="canManageSite" :current-user="my ? { id: my.id, name: my.name, email: my.email } : undefined" :user-directory="store.userDirectory" :months-ahead="36" :months-behind="36" @set-status="setItemStatus" @status-change="recordStatusChange" />
+        <div v-if="statusError" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{{ statusError }}</span>
+          <button @click="statusError = null" class="ml-3 text-red-500 hover:text-red-700 font-medium text-xs">Dismiss</button>
+        </div>
+        <CalendarPanel v-show="tab==='calendar'" :items="items" :can-manage-site="canManageSite" :current-user="my ? { id: my.id, name: my.name, email: my.email } : undefined" :user-directory="store.userDirectory" :months-ahead="36" :months-behind="36" @set-status="setItemStatus" />
         <ChangelogPanel v-show="tab==='changelog'" :site-id="id" :env="site?.env || ''" />
         <FormsPanel v-show="tab==='forms'" :site-id="id" :env="site?.env || ''" />
         <NotesPanel v-show="tab==='notes'" :site-id="id" :env="site?.env" :authed="authed" :my="my" />
