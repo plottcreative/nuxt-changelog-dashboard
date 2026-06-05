@@ -604,13 +604,10 @@
           <div class="card space-y-3">
             <div class="flex items-center justify-between gap-2">
               <div>
-                <h2 class="font-semibold text-slate-800">Past Issues (ever in follow-up)</h2>
+                <h2 class="font-semibold text-slate-800">Past Issues</h2>
                 <p class="text-xs text-slate-500 mt-1">
-                  Any maintenance item in the past that was ever
-                  <span class="font-semibold">In Progress</span>,
-                  <span class="font-semibold">Awaiting Form Conf</span>,
-                  <span class="font-semibold">Chased Via Email</span>, or
-                  <span class="font-semibold">Chased Via Phone</span>.
+                  Any past maintenance item that is not marked
+                  <span class="font-semibold">Completed</span>.
                 </p>
               </div>
               <span v-if="pastIssues.length" class="count-badge">
