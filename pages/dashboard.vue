@@ -188,26 +188,26 @@
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
   }
 
-  // Any item whose date is in the past and EVER had a follow-up status
+  // Any item whose date is in the past and NOT marked complete
   const pastIssues = computed(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return maintenance.value
       .map(item => {
-        const history = item.statusHistory || [];
-        const match = wasEverFollowup(history);
-        if (!match) return null;
+        // Skip completed items
+        if (item.status === 'Completed') return null;
 
         const due = new Date(item.date);
         if (due >= today) return null; // only strictly past dates
 
-        const normalized = normalizedFollowups.find(s => s === match);
-        if (!normalized) return null;
+        // Determine the current status to group by
+        const currentStatus = item.status || 'To-Do';
+        const statusKey = currentStatus.toLowerCase();
 
         return {
           ...item,
-          followupStatus: normalized,
+          followupStatus: statusKey,
           overdueDays: daysOverdue(item.date),
         };
       })
@@ -216,12 +216,21 @@
   });
 
   const pastIssuesGrouped = computed(() => {
+    // Group by actual status, including To-Do
     const groups: Record<string, any[]> = {};
-    for (const s of problemStatuses) groups[s] = [];
+    const allStatuses: MaintStatus[] = [
+      'To-Do',
+      'In Progress',
+      'Awaiting Form Conf',
+      'Chased Via Email',
+      'Chased Via Phone',
+    ];
+    for (const s of allStatuses) groups[s] = [];
 
     for (const item of pastIssues.value as any[]) {
-      const key = problemStatuses.find(s => s.toLowerCase() === item.followupStatus);
-      if (key) groups[key].push(item);
+      const statusKey = item.status || 'To-Do';
+      const key = allStatuses.find(s => s.toLowerCase() === statusKey.toLowerCase()) || 'To-Do';
+      if (groups[key]) groups[key].push(item);
     }
     return groups;
   });
@@ -611,7 +620,13 @@
 
             <template v-if="pastIssues.length">
               <details
-                v-for="status in problemStatuses"
+                v-for="status in [
+                  'To-Do',
+                  'In Progress',
+                  'Awaiting Form Conf',
+                  'Chased Via Email',
+                  'Chased Via Phone',
+                ]"
                 :key="status"
                 class="rounded-lg border border-slate-200/80 bg-slate-50/40 px-3 py-2"
                 :open="pastIssuesGrouped[status]?.length > 0"
