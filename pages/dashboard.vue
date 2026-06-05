@@ -193,6 +193,9 @@
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const cutoff = new Date(today);
+    cutoff.setMonth(cutoff.getMonth() - 6);
+
     return maintenance.value
       .map(item => {
         // Skip completed items
@@ -200,6 +203,7 @@
 
         const due = new Date(item.date);
         if (due >= today) return null; // only strictly past dates
+        if (due < cutoff) return null; // only keep the last ~6 months
 
         // Determine the current status to group by
         const currentStatus = item.status || 'To-Do';
@@ -604,9 +608,9 @@
           <div class="card space-y-3">
             <div class="flex items-center justify-between gap-2">
               <div>
-                <h2 class="font-semibold text-slate-800">Past Issues</h2>
+                <h2 class="font-semibold text-slate-800">Overdue</h2>
                 <p class="text-xs text-slate-500 mt-1">
-                  Any past maintenance item that is not marked
+                  Any past maintenance that is not marked
                   <span class="font-semibold">Completed</span>.
                 </p>
               </div>
