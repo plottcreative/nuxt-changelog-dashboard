@@ -1,4 +1,3 @@
-
 // server/utils/auth.ts
 import crypto from 'node:crypto'
 

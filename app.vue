@@ -15,7 +15,7 @@
         v-if="visible"
         class="fixed inset-0 z-[9999] flex items-center justify-center bg-white/80 backdrop-blur-md"
       >
-        <div class="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600"></div>
+        <div class="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
       </div>
     </Transition>
   </div>
@@ -35,9 +35,12 @@ watch(isLoading, (loading) => {
   clearTimeout(hideTimer)
   if (loading) {
     visible.value = true
-  } else {
+  }
+  else {
     // Small delay before hiding so we don't flash off/on between route guard and page fetch
-    hideTimer = setTimeout(() => { visible.value = false }, 50)
+    hideTimer = setTimeout(() => {
+      visible.value = false
+    }, 50)
   }
 })
 

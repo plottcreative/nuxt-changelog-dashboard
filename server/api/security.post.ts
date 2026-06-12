@@ -1,12 +1,11 @@
 // server/api/security.post.ts
 import { createError, defineEventHandler, readRawBody } from 'h3'
-import { timingSafeEqual } from 'node:crypto'
-import crypto from 'node:crypto'
+import crypto, { timingSafeEqual } from 'node:crypto'
 
-type SeverityCounts = { critical: number; high: number; medium: number; low: number; unknown?: number }
+type SeverityCounts = { critical: number, high: number, medium: number, low: number, unknown?: number }
 
 type Payload = {
-  site: { id: string; name?: string | null; env?: string | null }
+  site: { id: string, name?: string | null, env?: string | null }
   run: {
     timestamp: string
     php_version?: string | null
@@ -77,7 +76,8 @@ export default defineEventHandler(async (event) => {
   let body: Payload
   try {
     body = JSON.parse(raw)
-  } catch {
+  }
+  catch {
     throw createError({ statusCode: 400, statusMessage: 'Invalid JSON' })
   }
 
@@ -105,7 +105,7 @@ export default defineEventHandler(async (event) => {
       low: body.summary.low,
     },
     vulnerabilities: body.vulnerabilities ?? null,
-    raw: body.raw ?? null
+    raw: body.raw ?? null,
   }
 
   // ---------- Persist ----------
@@ -130,18 +130,18 @@ export default defineEventHandler(async (event) => {
     totalIssues: body.summary.total,
     high: body.summary.high,
     critical: body.summary.critical,
-    git: { sha: body.run.git_sha ?? null, branch: body.run.git_branch ?? null }
+    git: { sha: body.run.git_sha ?? null, branch: body.run.git_branch ?? null },
   })
   const trimmed = existingIndex.slice(0, MAX_INDEX)
 
   await Promise.all([
     store.setItem(idxPath, trimmed),
-    store.setItem(latestPath, { path: filePath, ts, summary: body.summary, run: body.run, site: body.site })
+    store.setItem(latestPath, { path: filePath, ts, summary: body.summary, run: body.run, site: body.site }),
   ])
 
   return {
     ok: true,
     stored: { path: filePath },
-    summary: body.summary
+    summary: body.summary,
   }
 })

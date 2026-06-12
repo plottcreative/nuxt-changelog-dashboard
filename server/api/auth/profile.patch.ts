@@ -1,14 +1,13 @@
-
 // server/api/auth/profile.patch.ts
 import { defineEventHandler, readBody, createError } from 'h3'
 import { getDb } from '../../utils/mongo'
 import { requireUser } from '../../utils/session'
 import { hashPassword } from '../../utils/auth'
 
-export default defineEventHandler( async (event) => {
+export default defineEventHandler(async (event) => {
   const { id } = await requireUser(event)
   const body = await readBody(event) as any
-  const update:any = {}
+  const update: any = {}
   if (body?.name) update.name = String(body.name)
   if (body?.password) {
     const pw = String(body.password)

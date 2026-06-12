@@ -5,9 +5,9 @@ import { sendMail } from '../../../utils/postmark'
 import { sendCompletionEmail } from '../../../utils/notifications'
 import { requireUser } from '../../../utils/session'
 
-type MaintStatus =
-  | 'To-Do' | 'In Progress' | 'Awaiting Form Conf'
-  | 'Chased Via Email' | 'Chased Via Phone' | 'Completed'
+type MaintStatus
+  = | 'To-Do' | 'In Progress' | 'Awaiting Form Conf'
+    | 'Chased Via Email' | 'Chased Via Phone' | 'Completed'
 
 async function sendStatusUpdateEmail(opts: {
   site: any
@@ -16,67 +16,75 @@ async function sendStatusUpdateEmail(opts: {
   date: string
   status: MaintStatus
   previousStatus: MaintStatus
-  updatedBy?: { id?: string; name?: string; email?: string } | null
+  updatedBy?: { id?: string, name?: string, email?: string } | null
   updatedAt: Date
   db: any
 }) {
   const { site, siteId, env, date, status, previousStatus, updatedBy, updatedAt, db } = opts
-  
+
   if (!site?.groupEmail) return
-  
-  const dateStr = new Date(date).toLocaleDateString('en-GB', { year:'numeric', month:'short', day:'2-digit' })
+
+  const dateStr = new Date(date).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' })
   const siteName = site.name || siteId
   const updaterName = updatedBy?.name || updatedBy?.email || updatedBy?.id || 'System'
-  
+
   // Get latest changelog if status is being set to Completed
   let latestChangelogHtml = ''
   if (status === 'Completed') {
     const latestChangelog = await db.collection('changelogs').findOne(
       { 'site.id': siteId, 'site.env': env },
-      { sort: { 'run.timestamp': -1, receivedAt: -1 } }
+      { sort: { 'run.timestamp': -1, 'receivedAt': -1 } },
     )
-    
+
     if (latestChangelog) {
       latestChangelogHtml = `
         <h3 style="margin:16px 0 8px">Latest Changelog</h3>
         <div style="background:#f8f9fa;padding:12px;border-radius:4px;margin:8px 0">
           <p style="margin:0 0 8px;font-size:14px">
             <strong>Run:</strong> ${latestChangelog.run?.timestamp ? new Date(latestChangelog.run.timestamp).toLocaleString() : 'N/A'}<br/>
-            <strong>Commit:</strong> ${latestChangelog.run?.commit?.slice(0,8) || 'N/A'}<br/>
+            <strong>Commit:</strong> ${latestChangelog.run?.commit?.slice(0, 8) || 'N/A'}<br/>
             ${latestChangelog.run?.branch ? `<strong>Branch:</strong> ${latestChangelog.run.branch}<br/>` : ''}
           </p>
-          ${latestChangelog.changes ? `
+          ${latestChangelog.changes
+            ? `
             <div style="font-size:13px">
-              ${latestChangelog.changes.updated?.length ? `
+              ${latestChangelog.changes.updated?.length
+                ? `
                 <p style="margin:4px 0"><strong>Updated (${latestChangelog.changes.updated.length}):</strong></p>
                 <ul style="margin:0;padding-left:16px">
                   ${latestChangelog.changes.updated.slice(0, 10).map((pkg: any) => `<li>${pkg.name}: ${pkg.old} → ${pkg.new}</li>`).join('')}
                   ${latestChangelog.changes.updated.length > 10 ? `<li><i>... and ${latestChangelog.changes.updated.length - 10} more</i></li>` : ''}
                 </ul>
-              ` : ''}
-              ${latestChangelog.changes.added?.length ? `
+              `
+                : ''}
+              ${latestChangelog.changes.added?.length
+                ? `
                 <p style="margin:4px 0"><strong>Added (${latestChangelog.changes.added.length}):</strong></p>
                 <ul style="margin:0;padding-left:16px">
                   ${latestChangelog.changes.added.slice(0, 5).map((pkg: any) => `<li>${pkg.name}: ${pkg.new}</li>`).join('')}
                   ${latestChangelog.changes.added.length > 5 ? `<li><i>... and ${latestChangelog.changes.added.length - 5} more</i></li>` : ''}
                 </ul>
-              ` : ''}
-              ${latestChangelog.changes.removed?.length ? `
+              `
+                : ''}
+              ${latestChangelog.changes.removed?.length
+                ? `
                 <p style="margin:4px 0"><strong>Removed (${latestChangelog.changes.removed.length}):</strong></p>
                 <ul style="margin:0;padding-left:16px">
                   ${latestChangelog.changes.removed.slice(0, 5).map((pkg: any) => `<li>${pkg.name}: ${pkg.old}</li>`).join('')}
                   ${latestChangelog.changes.removed.length > 5 ? `<li><i>... and ${latestChangelog.changes.removed.length - 5} more</i></li>` : ''}
                 </ul>
-              ` : ''}
+              `
+                : ''}
             </div>
-          ` : '<p style="margin:0;color:#666;font-size:13px">No package changes in latest run.</p>'}
+          `
+            : '<p style="margin:0;color:#666;font-size:13px">No package changes in latest run.</p>'}
         </div>
       `
     }
   }
-  
+
   const subject = `[${siteName}] Maintenance status: ${status} — ${dateStr}`
-  
+
   const html = `
     <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
       <h2 style="margin:0 0 8px 0">Maintenance Status Update</h2>
@@ -88,13 +96,13 @@ async function sendStatusUpdateEmail(opts: {
         <code>${previousStatus}</code> → <code style="background:#e8f5e8;padding:2px 4px;border-radius:3px">${status}</code>
       </p>
       <p style="margin:0 0 8px 0"><strong>Updated by:</strong> ${updaterName}</p>
-      <p style="margin:0 0 8px 0"><strong>Updated at:</strong> ${updatedAt.toLocaleString('en-GB', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false })}</p>
+      <p style="margin:0 0 8px 0"><strong>Updated at:</strong> ${updatedAt.toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
       ${site.websiteUrl ? `<p style="margin:0 0 8px 0"><strong>Website:</strong> <a href="${site.websiteUrl}">${site.websiteUrl}</a></p>` : ''}
       ${site.gitUrl ? `<p style="margin:0 0 8px 0"><strong>Repository:</strong> <a href="${site.gitUrl}">${site.gitUrl}</a></p>` : ''}
       ${latestChangelogHtml}
     </div>
   `
-  
+
   const text = [
     `Maintenance Status Update`,
     `Site: ${siteName} (${siteId})`,
@@ -102,28 +110,28 @@ async function sendStatusUpdateEmail(opts: {
     `Date: ${dateStr}`,
     `Status changed: ${previousStatus} → ${status}`,
     `Updated by: ${updaterName}`,
-    `Updated at: ${updatedAt.toLocaleString('en-GB', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false })}`,
+    `Updated at: ${updatedAt.toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}`,
     site.websiteUrl ? `Website: ${site.websiteUrl}` : '',
-    site.gitUrl ? `Repository: ${site.gitUrl}` : ''
+    site.gitUrl ? `Repository: ${site.gitUrl}` : '',
   ].filter(Boolean).join('\n')
-  
+
   await sendMail({
     to: site.groupEmail,
     subject,
     html,
-    text
+    text,
   })
 }
 
 export default defineEventHandler(async (event) => {
   // Require authentication - any logged-in user can change status
   const user = await requireUser(event)
-  
+
   try {
     const { siteId, env, date, status, from, by } = await readBody<{
       siteId: string; env: string; date: string; status: MaintStatus
       from?: MaintStatus | null
-      by?: { id?: string; name?: string; email?: string } | null
+      by?: { id?: string, name?: string, email?: string } | null
     }>(event)
 
     if (!siteId || !env || !date || !status) {
@@ -141,8 +149,8 @@ export default defineEventHandler(async (event) => {
       { _id: it._id },
       {
         $set: { status, updatedAt: now, updatedBy: by ?? null },
-        $push: { statusHistory: { at: now, from: from ?? prev, to: status, by: by ?? null } }
-      }
+        $push: { statusHistory: { at: now, from: from ?? prev, to: status, by: by ?? null } },
+      },
     )
 
     // Send email notifications for ALL status updates to group email
@@ -164,7 +172,7 @@ export default defineEventHandler(async (event) => {
         previousStatus: prev,
         updatedBy: by,
         updatedAt: now,
-        db
+        db,
       }))
     }
 
@@ -176,14 +184,15 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    return { 
-      ok: true, 
-      previous: prev, 
+    return {
+      ok: true,
+      previous: prev,
       status,
       groupEmailSent: !!(siteDoc?.groupEmail && status !== prev),
-      groupEmail: siteDoc?.groupEmail || null
+      groupEmail: siteDoc?.groupEmail || null,
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     console.error('[maintenance/status] error:', err)
     if (err?.statusCode) throw err
     throw createError({ statusCode: 500, statusMessage: err?.message || 'Failed to set status' })

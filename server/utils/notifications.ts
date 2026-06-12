@@ -1,19 +1,19 @@
 // server/utils/notifications.ts
 import { getDb } from './mongo'
-import { sendMail } from './postmark'  // assumes you export a simple sendEmail({to, subject, html/text})
+import { sendMail } from './postmark' // assumes you export a simple sendEmail({to, subject, html/text})
 
-type MaintStatus =
-  | 'To-Do'
-  | 'In Progress'
-  | 'Awaiting Form Conf'
-  | 'Chased Via Email'
-  | 'Chased Via Phone'
-  | 'Completed'
+type MaintStatus
+  = | 'To-Do'
+    | 'In Progress'
+    | 'Awaiting Form Conf'
+    | 'Chased Via Email'
+    | 'Chased Via Phone'
+    | 'Completed'
 
 export async function sendCompletionEmail(opts: {
-  site: any,
-  item: any,
-  auditHistory?: Array<{ at?: string|Date; by?: any; from?: MaintStatus|null; to?: MaintStatus }>
+  site: any
+  item: any
+  auditHistory?: Array<{ at?: string | Date, by?: any, from?: MaintStatus | null, to?: MaintStatus }>
 }) {
   const { site, item } = opts
   if (!site || !item) return
@@ -21,7 +21,7 @@ export async function sendCompletionEmail(opts: {
   const to = site.groupEmail || site?.primaryContact?.email
   if (!to) return // nowhere to send
 
-  const dateStr = new Date(item.date).toLocaleDateString('en-GB', { year:'numeric', month:'short', day:'2-digit' })
+  const dateStr = new Date(item.date).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' })
   const isReport = item?.labels?.reportDue || item?.kind === 'report'
   const title = isReport ? 'Report' : 'Maintenance'
   const subject = `[${site.name || site.id}] ${title} completed — ${dateStr}`
@@ -32,16 +32,17 @@ export async function sendCompletionEmail(opts: {
       at: h.at,
       by: h.by || h.user || undefined,
       from: h.from ?? undefined,
-      to: h.to ?? h.status
+      to: h.to ?? h.status,
     }))
     .filter(Boolean)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
-  const historyLines = merged.map(h => {
+  const historyLines = merged.map((h) => {
     const when = new Date(h.at).toLocaleString('en-GB', {
-      year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
     })
-    const by = typeof h.by === 'string' ? h.by
+    const by = typeof h.by === 'string'
+      ? h.by
       : (h.by?.name || h.by?.email || h.by?.id || 'Unknown')
     const from = h.from ?? 'N/A'
     const to = h.to ?? 'N/A'
@@ -59,7 +60,7 @@ export async function sendCompletionEmail(opts: {
     labelChips.length ? `Labels: ${labelChips.join(', ')}` : undefined,
     '',
     'History:',
-    historyLines || '• No history entries.'
+    historyLines || '• No history entries.',
   ].filter(Boolean).join('\n')
 
   const html = `
@@ -70,8 +71,8 @@ export async function sendCompletionEmail(opts: {
       <h3 style="margin:16px 0 8px 0; font-size:14px;">History</h3>
       <ul style="margin:0; padding-left:18px;">
         ${merged.length
-          ? merged.map(h => {
-              const when = new Date(h.at).toLocaleString('en-GB', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false })
+          ? merged.map((h) => {
+              const when = new Date(h.at).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
               const by = typeof h.by === 'string' ? h.by : (h.by?.name || h.by?.email || h.by?.id || 'Unknown')
               const from = h.from ?? 'N/A'
               const to = h.to ?? 'N/A'
@@ -86,12 +87,12 @@ export async function sendCompletionEmail(opts: {
     to,
     subject,
     text: plain,
-    html
+    html,
   })
 }
 
 function escapeHtml(s: string) {
   return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }

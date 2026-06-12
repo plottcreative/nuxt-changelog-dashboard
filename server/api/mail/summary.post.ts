@@ -2,32 +2,32 @@
 import { defineEventHandler, readBody } from 'h3'
 import { getDb } from '../../utils/mongo'
 import { requireRole } from '../../utils/session'
-import { sendMail } from '../../utils/postmark'   // <- switch to Postmark
+import { sendMail } from '../../utils/postmark' // <- switch to Postmark
 
 function firstOfMonthUTC(y: number, m: number) { return new Date(Date.UTC(y, m, 1)) }
 function monthRangeUTC(d = new Date()) {
   const start = firstOfMonthUTC(d.getUTCFullYear(), d.getUTCMonth())
-  const end   = firstOfMonthUTC(d.getUTCFullYear(), d.getUTCMonth() + 1)
+  const end = firstOfMonthUTC(d.getUTCFullYear(), d.getUTCMonth() + 1)
   return { start, end }
 }
-function fmt(dISO: string) { return new Date(dISO).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) }
+function fmt(dISO: string) { return new Date(dISO).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }
 
 export default defineEventHandler(async (event) => {
-  await requireRole(event, ['manager','admin'])
+  await requireRole(event, ['manager', 'admin'])
 
   const body = await readBody(event).catch(() => ({}))
-  const to   = body?.to || process.env.MAIL_TO_DEFAULT
+  const to = body?.to || process.env.MAIL_TO_DEFAULT
 
   const db = await getDb()
   const { start, end } = monthRangeUTC()
 
   const items = await db.collection('maintenance')
     .find({ date: { $gte: start.toISOString(), $lt: end.toISOString() } })
-    .sort({ date: 1, 'site.name': 1, 'site.id': 1 })
+    .sort({ 'date': 1, 'site.name': 1, 'site.id': 1 })
     .toArray()
 
   const reports = items.filter(i => i.kind === 'report' || i.labels?.reportDue)
-  const maint   = items.filter(i => i.kind !== 'report')
+  const maint = items.filter(i => i.kind !== 'report')
 
   const monthLabel = start.toLocaleString(undefined, { month: 'long', year: 'numeric' })
   const row = (i: any) => `
@@ -44,7 +44,8 @@ export default defineEventHandler(async (event) => {
 
   const section = (title: string, arr: any[]) => `
     <h3 style="margin:18px 0 6px;font-family:system-ui,Segoe UI,Arial;font-size:16px">${title} (${arr.length})</h3>
-    ${arr.length ? `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-family:system-ui,Segoe UI,Arial;font-size:14px">
+    ${arr.length
+      ? `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-family:system-ui,Segoe UI,Arial;font-size:14px">
       <thead>
         <tr>
           <th align="left" style="padding:6px 8px;border-bottom:1px solid #ddd">Site</th>
@@ -54,7 +55,8 @@ export default defineEventHandler(async (event) => {
         </tr>
       </thead>
       <tbody>${arr.map(row).join('')}</tbody>
-    </table>` : `<p style="margin:6px 0 0;color:#666">None.</p>`}`
+    </table>`
+      : `<p style="margin:6px 0 0;color:#666">None.</p>`}`
 
   const html = `
     <div style="max-width:740px;margin:0 auto;padding:16px">

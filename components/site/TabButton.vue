@@ -8,7 +8,7 @@ const props = defineProps<{
   count?: number | string
   icon?: Component
 }>()
-const emit = defineEmits<{ (e:'click'): void }>()
+const emit = defineEmits<{ (e: 'click'): void }>()
 </script>
 
 <template>
@@ -20,9 +20,19 @@ const emit = defineEmits<{ (e:'click'): void }>()
     @click="emit('click')"
   >
     <!-- 👇 use Heroicon component directly -->
-    <component v-if="icon" :is="icon" class="h-4 w-4" />
+    <component
+      :is="icon"
+      v-if="icon"
+      class="h-4 w-4"
+    />
     <span>{{ label }}</span>
-    <span v-if="typeof count !== 'undefined'" class="text-[10px] rounded-full bg-white/90 px-1.5 border border-black/5">{{ String(count) }}</span>
-    <span v-if="active" class="absolute -bottom-1 left-3 right-3 h-0.5 rounded-full bg-gray-300"></span>
+    <span
+      v-if="typeof count !== 'undefined'"
+      class="text-[10px] rounded-full bg-white/90 px-1.5 border border-black/5"
+    >{{ String(count) }}</span>
+    <span
+      v-if="active"
+      class="absolute -bottom-1 left-3 right-3 h-0.5 rounded-full bg-gray-300"
+    />
   </button>
 </template>

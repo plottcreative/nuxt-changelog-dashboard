@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (me?.authenticated) {
     const fallback = '/dashboard'
     const target = (to.query.redirect as string) || fallback
-    if (process.server) {
+    if (import.meta.server) {
       return navigateTo(target, { redirectCode: 302 })
     }
     return navigateTo(target)

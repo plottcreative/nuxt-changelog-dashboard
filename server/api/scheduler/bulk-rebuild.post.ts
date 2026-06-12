@@ -4,13 +4,13 @@ import { getDb } from '../../utils/mongo'
 import { addMonths, firstOfMonthUTC, lastWeekdayOfMonthUTC, addMonthsEndOfMonth, toISODate } from '../../utils/date'
 import { requireRole } from '../../utils/session'
 
-type MaintStatus =
-  | 'To-Do'
-  | 'In Progress'
-  | 'Awaiting Form Conf'
-  | 'Chased Via Email'
-  | 'Chased Via Phone'
-  | 'Completed'
+type MaintStatus
+  = | 'To-Do'
+    | 'In Progress'
+    | 'Awaiting Form Conf'
+    | 'Chased Via Email'
+    | 'Chased Via Phone'
+    | 'Completed'
 
 export default defineEventHandler(async (event) => {
   await requireRole(event, ['admin']) // Only admins can bulk rebuild
@@ -19,12 +19,12 @@ export default defineEventHandler(async (event) => {
   const backfillMonths = Math.max(0, Math.min(60, Number(body?.backfillMonths || 12)))
   const forwardMonths = Math.max(0, Math.min(60, Number(body?.forwardMonths || 14)))
   const confirmText = String(body?.confirmText || '').trim()
-  
+
   // Safety check
   if (confirmText !== 'REBUILD ALL SITES') {
-    throw createError({ 
-      statusCode: 400, 
-      statusMessage: 'Must provide confirmText: "REBUILD ALL SITES"' 
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Must provide confirmText: "REBUILD ALL SITES"',
     })
   }
 
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
 
   // Get all sites
   const sites = await db.collection('sites').find({}).toArray()
-  
+
   const results = []
   let totalDeleted = 0
   let totalCreated = 0
@@ -41,11 +41,11 @@ export default defineEventHandler(async (event) => {
   for (const site of sites) {
     try {
       const { id, name, env, renewMonth } = site
-      
+
       // Delete existing maintenance for this site
-      const deleteResult = await db.collection('maintenance').deleteMany({ 
-        'site.id': id, 
-        'site.env': env 
+      const deleteResult = await db.collection('maintenance').deleteMany({
+        'site.id': id,
+        'site.env': env,
       })
       totalDeleted += deleteResult.deletedCount || 0
 
@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
       const planned = []
       const ops = []
 
-      const upsertItem = (d: Date, kind: 'maintenance'|'report', labels: any) => {
+      const upsertItem = (d: Date, kind: 'maintenance' | 'report', labels: any) => {
         const dateISO = toISODate(d)
         const ev = {
           site: { id, name, env },
@@ -73,11 +73,11 @@ export default defineEventHandler(async (event) => {
           status: 'To-Do' as MaintStatus,
           createdAt: now,
           updatedAt: now,
-          statusHistory: [{ at: now, status: 'To-Do' as MaintStatus }]
+          statusHistory: [{ at: now, status: 'To-Do' as MaintStatus }],
         }
         planned.push({ date: dateISO, kind, labels })
         ops.push(
-          db.collection('maintenance').insertOne(ev)
+          db.collection('maintenance').insertOne(ev),
         )
       }
 
@@ -107,16 +107,16 @@ export default defineEventHandler(async (event) => {
         site: { id, name, env },
         deleted: deleteResult.deletedCount || 0,
         created: planned.length,
-        success: true
+        success: true,
       })
-
-    } catch (error: any) {
+    }
+    catch (error: any) {
       results.push({
         site: { id: site.id, name: site.name, env: site.env },
         deleted: 0,
         created: 0,
         success: false,
-        error: error.message || 'Unknown error'
+        error: error.message || 'Unknown error',
       })
     }
   }
@@ -130,6 +130,6 @@ export default defineEventHandler(async (event) => {
     backfillMonths,
     forwardMonths,
     results,
-    timestamp: now.toISOString()
+    timestamp: now.toISOString(),
   }
 })

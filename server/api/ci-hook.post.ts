@@ -1,14 +1,15 @@
 // server/api/ci-hook.post.ts
-import { H3Event, createError, sendNoContent, readBody, getHeader } from 'h3'
+import type { H3Event } from 'h3'
+import { createError, sendNoContent, readBody, getHeader } from 'h3'
 
 type BuildPayload = {
-  repo: string            // e.g. "owner/repo"
-  env?: string            // e.g. "production"
+  repo: string // e.g. "owner/repo"
+  env?: string // e.g. "production"
   status: 'success' | 'failure' | 'cancelled' | 'in_progress'
   run: {
     git_branch: string
     git_sha: string
-    ci_url: string        // GitHub run URL
+    ci_url: string // GitHub run URL
     run_id?: string | number
   }
   metadata?: Record<string, any>
@@ -42,7 +43,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   // Persist with Nitro’s unstorage
-  const storage = useStorage()                 // default storage
+  const storage = useStorage() // default storage
   const baseKey = `ci:builds:${body.repo}:${env}`
   const itemKey = `${baseKey}:${body.run!.git_sha}:${body.run!.run_id ?? 'noid'}`
 

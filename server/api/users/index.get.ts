@@ -1,4 +1,3 @@
-
 // server/api/users/index.get.ts
 import { defineEventHandler } from 'h3'
 import { getDb } from '../../utils/mongo'

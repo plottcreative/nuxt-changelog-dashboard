@@ -3,19 +3,20 @@
 // - Subsequent client navigations reuse the cached result.
 // - Call ensure(true) to force a refresh when you log in/out.
 
-type Me = { authenticated: boolean; user?: any }
+type Me = { authenticated: boolean, user?: any }
 
 export function useAuth() {
   const me = useState<Me | null>('me', () => null)
 
   async function fetchMe(): Promise<Me> {
-    const headers = process.server ? useRequestHeaders(['cookie']) : undefined
+    const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
     try {
       return await $fetch<Me>('/api/auth/me', {
         headers,
         credentials: 'include',
       })
-    } catch {
+    }
+    catch {
       return { authenticated: false }
     }
   }

@@ -12,16 +12,17 @@ export default defineEventHandler(async (event) => {
 
   // HMAC
   const secret = (process.env.NUXT_HMAC_SECRET || '').trim()
-  const nonce  = (getHeader(event, 'x-nonce') || '').trim()
-  const sig    = (getHeader(event, 'x-signature') || '').trim()
-  const raw    = (await readRawBody(event)) || ''
+  const nonce = (getHeader(event, 'x-nonce') || '').trim()
+  const sig = (getHeader(event, 'x-signature') || '').trim()
+  const raw = (await readRawBody(event)) || ''
   const expected = crypto.createHmac('sha256', secret).update(`${nonce}.${raw}`).digest('base64')
   if (!nonce || !sig || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid signature' })
   }
 
   let parsed: unknown
-  try { parsed = JSON.parse(raw.toString()) } catch { throw createError({ statusCode: 400, statusMessage: 'Invalid JSON' }) }
+  try { parsed = JSON.parse(raw.toString()) }
+  catch { throw createError({ statusCode: 400, statusMessage: 'Invalid JSON' }) }
 
   const formSchema = z.object({
     site: z.object({ id: z.string().min(1), env: z.string().optional().default('production') }),

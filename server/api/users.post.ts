@@ -1,4 +1,3 @@
-
 // server/api/users.post.ts (admin create user)
 import { defineEventHandler, readBody, createError } from 'h3'
 import { getDb } from '../utils/mongo'
@@ -8,7 +7,7 @@ import crypto from 'node:crypto'
 
 function genPassword() {
   // 12-char base64url-ish (no padding)
-  return crypto.randomBytes(9).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+  return crypto.randomBytes(9).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 export default defineEventHandler(async (event) => {
@@ -21,7 +20,7 @@ export default defineEventHandler(async (event) => {
   let password = (body?.password || '').toString()
 
   if (!email) throw createError({ statusCode: 400, statusMessage: 'email required' })
-  if (!['viewer','manager','admin'].includes(role)) throw createError({ statusCode: 400, statusMessage: 'invalid role' })
+  if (!['viewer', 'manager', 'admin'].includes(role)) throw createError({ statusCode: 400, statusMessage: 'invalid role' })
 
   const db = await getDb()
   const exists = await db.collection('users').findOne({ email })
@@ -39,12 +38,12 @@ export default defineEventHandler(async (event) => {
     name: name || email.split('@')[0],
     role,
     passwordHash: hashPassword(password),
-    createdAt: new Date()
+    createdAt: new Date(),
   }
   const result = await db.collection('users').insertOne(user as any)
   return {
     ok: true,
     user: { id: String(result.insertedId), email: user.email, name: user.name, role: user.role },
-    tempPassword: tempPassword || undefined // show only once if auto-generated
+    tempPassword: tempPassword || undefined, // show only once if auto-generated
   }
 })

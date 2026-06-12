@@ -2,12 +2,14 @@
   <div class="bg-white rounded-2xl border shadow-sm">
     <div class="border-b border-slate-200 p-6">
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-slate-800">Security Scan</h2>
-        <button 
-          v-if="canManageSite" 
-          @click="runScan" 
+        <h2 class="text-xl font-semibold text-slate-800">
+          Security Scan
+        </h2>
+        <button
+          v-if="canManageSite"
           :disabled="scanning"
           class="btn-primary"
+          @click="runScan"
         >
           {{ scanning ? 'Scanning...' : 'Run Security Scan' }}
         </button>
@@ -19,18 +21,30 @@
 
     <div class="p-6">
       <!-- Latest Scan Results -->
-      <div v-if="latestScan" class="space-y-6">
+      <div
+        v-if="latestScan"
+        class="space-y-6"
+      >
         <!-- Overall Status -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="status-badge" :class="statusClass(latestScan.overallStatus)">
-              <div class="status-icon" :class="statusIconClass(latestScan.overallStatus)">
+            <div
+              class="status-badge"
+              :class="statusClass(latestScan.overallStatus)"
+            >
+              <div
+                class="status-icon"
+                :class="statusIconClass(latestScan.overallStatus)"
+              >
                 {{ statusIcon(latestScan.overallStatus) }}
               </div>
               <span class="font-medium">{{ statusText(latestScan.overallStatus) }}</span>
             </div>
             <div class="text-sm text-slate-500">
-              Score: <span class="font-semibold" :class="scoreClass(latestScan.score)">{{ latestScan.score }}/100</span>
+              Score: <span
+                class="font-semibold"
+                :class="scoreClass(latestScan.score)"
+              >{{ latestScan.score }}/100</span>
             </div>
           </div>
           <div class="text-xs text-slate-500">
@@ -40,19 +54,37 @@
 
         <!-- Security Checks -->
         <div class="space-y-4">
-          <h3 class="font-semibold text-slate-800">Security Checks</h3>
+          <h3 class="font-semibold text-slate-800">
+            Security Checks
+          </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="check in latestScan.checks" :key="check.name" class="check-card">
+            <div
+              v-for="check in latestScan.checks"
+              :key="check.name"
+              class="check-card"
+            >
               <div class="flex items-start gap-3">
-                <div class="check-status" :class="checkStatusClass(check.status)">
+                <div
+                  class="check-status"
+                  :class="checkStatusClass(check.status)"
+                >
                   {{ checkStatusIcon(check.status) }}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <h4 class="font-medium text-slate-800 text-sm">{{ check.name }}</h4>
-                  <p class="text-xs text-slate-600 mt-1">{{ check.message }}</p>
-                  <div v-if="check.details" class="mt-2 text-xs text-slate-500">
+                  <h4 class="font-medium text-slate-800 text-sm">
+                    {{ check.name }}
+                  </h4>
+                  <p class="text-xs text-slate-600 mt-1">
+                    {{ check.message }}
+                  </p>
+                  <div
+                    v-if="check.details"
+                    class="mt-2 text-xs text-slate-500"
+                  >
                     <details class="cursor-pointer">
-                      <summary class="hover:text-slate-700">View details</summary>
+                      <summary class="hover:text-slate-700">
+                        View details
+                      </summary>
                       <pre class="mt-1 p-2 bg-slate-50 rounded text-[10px] overflow-x-auto">{{ JSON.stringify(check.details, null, 2) }}</pre>
                     </details>
                   </div>
@@ -63,11 +95,20 @@
         </div>
 
         <!-- Recommendations -->
-        <div v-if="latestScan.recommendations?.length" class="space-y-4">
-          <h3 class="font-semibold text-slate-800">Recommendations</h3>
+        <div
+          v-if="latestScan.recommendations?.length"
+          class="space-y-4"
+        >
+          <h3 class="font-semibold text-slate-800">
+            Recommendations
+          </h3>
           <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <ul class="space-y-2">
-              <li v-for="rec in latestScan.recommendations" :key="rec" class="flex items-start gap-2 text-sm text-amber-800">
+              <li
+                v-for="rec in latestScan.recommendations"
+                :key="rec"
+                class="flex items-start gap-2 text-sm text-amber-800"
+              >
                 <span class="text-amber-600 font-bold">•</span>
                 <span>{{ rec }}</span>
               </li>
@@ -77,52 +118,107 @@
       </div>
 
       <!-- No Scans State -->
-      <div v-else-if="!scanning" class="text-center py-12">
+      <div
+        v-else-if="!scanning"
+        class="text-center py-12"
+      >
         <div class="mx-auto h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-          <svg class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <svg
+            class="h-6 w-6 text-slate-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
           </svg>
         </div>
-        <h3 class="text-lg font-medium text-slate-800 mb-2">No Security Scans</h3>
-        <p class="text-slate-500 mb-4">Run your first security scan to check for vulnerabilities</p>
-        <button 
-          v-if="canManageSite" 
-          @click="runScan"
+        <h3 class="text-lg font-medium text-slate-800 mb-2">
+          No Security Scans
+        </h3>
+        <p class="text-slate-500 mb-4">
+          Run your first security scan to check for vulnerabilities
+        </p>
+        <button
+          v-if="canManageSite"
           class="btn-primary"
+          @click="runScan"
         >
           Run First Scan
         </button>
       </div>
 
       <!-- Scanning State -->
-      <div v-if="scanning" class="text-center py-12">
+      <div
+        v-if="scanning"
+        class="text-center py-12"
+      >
         <div class="mx-auto h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-4 animate-pulse">
-          <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <svg
+            class="h-6 w-6 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
           </svg>
         </div>
-        <h3 class="text-lg font-medium text-slate-800 mb-2">Running Security Scan</h3>
-        <p class="text-slate-500">Checking for vulnerabilities and security issues...</p>
+        <h3 class="text-lg font-medium text-slate-800 mb-2">
+          Running Security Scan
+        </h3>
+        <p class="text-slate-500">
+          Checking for vulnerabilities and security issues...
+        </p>
       </div>
 
       <!-- Error State -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+      <div
+        v-if="error"
+        class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4"
+      >
         <div class="flex items-start gap-3">
-          <div class="text-red-600">⚠️</div>
+          <div class="text-red-600">
+            ⚠️
+          </div>
           <div>
-            <h4 class="font-medium text-red-800">Scan Failed</h4>
-            <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+            <h4 class="font-medium text-red-800">
+              Scan Failed
+            </h4>
+            <p class="text-sm text-red-700 mt-1">
+              {{ error }}
+            </p>
           </div>
         </div>
       </div>
 
       <!-- Scan History -->
-      <div v-if="scans?.length > 1" class="mt-8 border-t border-slate-200 pt-6">
-        <h3 class="font-semibold text-slate-800 mb-4">Recent Scans</h3>
+      <div
+        v-if="scans?.length > 1"
+        class="mt-8 border-t border-slate-200 pt-6"
+      >
+        <h3 class="font-semibold text-slate-800 mb-4">
+          Recent Scans
+        </h3>
         <div class="space-y-3">
-          <div v-for="scan in scans.slice(1, 6)" :key="scan._id" class="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-lg">
+          <div
+            v-for="scan in scans.slice(1, 6)"
+            :key="scan._id"
+            class="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-lg"
+          >
             <div class="flex items-center gap-3">
-              <div class="status-badge-small" :class="statusClass(scan.overallStatus)">
+              <div
+                class="status-badge-small"
+                :class="statusClass(scan.overallStatus)"
+              >
                 {{ statusIcon(scan.overallStatus) }}
               </div>
               <div class="text-sm">
@@ -178,7 +274,8 @@ async function loadScans() {
   try {
     const response = await $fetch(`/api/sites/${props.siteId}/security-scans`)
     scans.value = response.scans || []
-  } catch (err: any) {
+  }
+  catch (err: any) {
     console.error('Failed to load security scans:', err)
   }
 }
@@ -186,15 +283,15 @@ async function loadScans() {
 // Run new security scan
 async function runScan() {
   if (scanning.value) return
-  
+
   scanning.value = true
   error.value = null
-  
+
   try {
     const result = await $fetch(`/api/sites/${props.siteId}/security-scan`, {
-      method: 'POST'
+      method: 'POST',
     })
-    
+
     // Add to the beginning of scans array
     scans.value.unshift({
       _id: Date.now().toString(),
@@ -203,11 +300,13 @@ async function runScan() {
       score: result.score,
       checks: result.checks,
       recommendations: result.recommendations,
-      url: result.url
+      url: result.url,
     })
-  } catch (err: any) {
+  }
+  catch (err: any) {
     error.value = err.data?.statusMessage || err.message || 'Scan failed'
-  } finally {
+  }
+  finally {
     scanning.value = false
   }
 }

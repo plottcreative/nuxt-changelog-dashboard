@@ -1,11 +1,10 @@
-
 // server/api/auth/register.post.ts (hardened: disabled after first user exists)
 import { defineEventHandler, readBody, createError } from 'h3'
 import { getDb } from '../../utils/mongo'
 import { hashPassword } from '../../utils/auth'
 import { setUserSession } from '../../utils/session'
 
-export default defineEventHandler( async (event) => {
+export default defineEventHandler(async (event) => {
   const db = await getDb()
 
   const usersCount = await db.collection('users').countDocuments()
@@ -31,7 +30,7 @@ export default defineEventHandler( async (event) => {
     name: name || emailRaw.split('@')[0],
     role: 'admin', // first user is admin
     password: hashPassword(password),
-    createdAt: new Date()
+    createdAt: new Date(),
   }
 
   const result = await db.collection('users').insertOne(user as any)

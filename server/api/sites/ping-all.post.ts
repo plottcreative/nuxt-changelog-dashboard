@@ -7,7 +7,8 @@ function normalizeUrl(u?: string) {
   if (!s) throw createError({ statusCode: 400, statusMessage: 'URL is required' })
   try {
     return new URL(s.startsWith('http') ? s : `https://${s}`).toString()
-  } catch {
+  }
+  catch {
     throw createError({ statusCode: 400, statusMessage: 'Invalid URL' })
   }
 }
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
   // Keep behind auth; change to requireRole(event, ['manager','admin']) if you prefer
   await requireUser(event)
 
-  const body = await readBody<{ url?: string; className?: string; timeoutMs?: number }>(event)
+  const body = await readBody<{ url?: string, className?: string, timeoutMs?: number }>(event)
   const url = normalizeUrl(body?.url)
   const className = (body?.className || 'plott-maintain').trim()
   const timeoutMs = Math.max(1000, Math.min(20000, Number(body?.timeoutMs ?? 8000)))
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const res = await fetch(url, {
-      method: 'GET',                       // need body to inspect <header>
+      method: 'GET', // need body to inspect <header>
       redirect: 'follow',
       signal: controller.signal,
       headers: {
@@ -57,7 +58,7 @@ export default defineEventHandler(async (event) => {
     clearTimeout(timer)
 
     let hasMaintainClass: boolean | undefined
-    let statusText = res.statusText
+    const statusText = res.statusText
 
     // Only attempt to read text for HTML-like responses
     const ct = res.headers.get('content-type') || ''
@@ -82,11 +83,13 @@ export default defineEventHandler(async (event) => {
             if (received >= maxBytes) break
           }
           html += decoder.decode()
-        } else {
+        }
+        else {
           html = await res.text()
           if (html.length > 512 * 1024) html = html.slice(0, 512 * 1024)
         }
-      } catch { /* ignore body read errors */ }
+      }
+      catch { /* ignore body read errors */ }
 
       if (html) {
         const headerFrag = extractHeader(html)
@@ -102,7 +105,8 @@ export default defineEventHandler(async (event) => {
       timeMs,
       hasMaintainClass,
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     const timeMs = Date.now() - started
     clearTimeout(timer)
     return {

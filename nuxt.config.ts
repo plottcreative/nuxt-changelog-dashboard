@@ -1,9 +1,17 @@
+// nuxt.config.ts
 export default defineNuxtConfig({
-  modules: ['@nuxtjs/tailwindcss'],
-  nitro: {},
-  routeRules: {
-    '/api/**': { runtime: 'nodejs' }
+  compatibilityDate: '2026-06-12',
+  modules: ['@nuxtjs/tailwindcss', '@nuxt/eslint'],
+  devtools: {
+    enabled: false,
   },
+  app: {
+    head: {
+      title: 'PLOTT Maintenance',
+    },
+  },
+
+  css: ['~/assets/main.css'],
   runtimeConfig: {
     POSTMARK_TOKEN: process.env.POSTMARK_TOKEN,
     POSTMARK_MESSAGE_STREAM: process.env.POSTMARK_MESSAGE_STREAM || 'outbound',
@@ -11,10 +19,9 @@ export default defineNuxtConfig({
     MAIL_TO_DEFAULT: process.env.MAIL_TO_DEFAULT,
     ciWebhookToken: process.env.CI_WEBHOOK_TOKEN,
   },
-  devtools: {
-    enabled: false,
+  routeRules: {
+    '/api/**': { runtime: 'nodejs' },
   },
-  debug: false,
   experimental: {
     defaults: {
       nuxtLink: {
@@ -23,9 +30,16 @@ export default defineNuxtConfig({
     },
     viewTransition: true,
   },
-  app: {
-    head: {
-      title: 'PLOTT Maintenance'
-    }
+
+  nitro: {},
+  debug: false,
+  eslint: {
+    config: {
+      stylistic: true, // <---
+    },
+  },
+
+  tailwindcss: {
+    configPath: './tailwind.config.ts',
   },
 })

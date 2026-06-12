@@ -5,16 +5,16 @@ import { requireRole, getSessionUser } from '../../utils/session'
 import { sendMail } from '../../utils/postmark'
 
 function toISO(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0,10)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10)
 }
 
 export default defineEventHandler(async (event) => {
-  await requireRole(event, ['manager','admin'])
+  await requireRole(event, ['manager', 'admin'])
 
   const body = await readBody(event)
   const siteId = String(body?.siteId || '').trim()
-  const env    = String(body?.env || 'production').trim()
-  const date   = String(body?.date || '').slice(0,10) // yyyy-mm-dd
+  const env = String(body?.env || 'production').trim()
+  const date = String(body?.date || '').slice(0, 10) // yyyy-mm-dd
 
   if (!siteId || !date) {
     throw createError({ statusCode: 400, statusMessage: 'siteId and date are required' })
@@ -45,46 +45,46 @@ export default defineEventHandler(async (event) => {
           from: fromStatus,
           to: 'Completed',
           note: body?.note || null,
-        }
-      }
-    }
+        },
+      },
+    },
   )
 
   // 2) Load site for recipients / subject
   const siteDoc = await db.collection('sites').findOne({ id: siteId })
   const site = siteDoc || { id: siteId, env, name: siteId }
-  const recipient =
-    (siteDoc?.primaryContact?.email && siteDoc.primaryContact.email.trim()) ||
-    process.env.MAIL_TO || // optional global testing fallback
-    null
-  
+  const recipient
+    = (siteDoc?.primaryContact?.email && siteDoc.primaryContact.email.trim())
+      || process.env.MAIL_TO // optional global testing fallback
+      || null
+
   // 2.1) Get latest changelog for notification
   const latestChangelog = await db.collection('changelogs').findOne(
     { 'site.id': siteId, 'site.env': env },
-    { sort: { 'run.timestamp': -1, receivedAt: -1 } }
+    { sort: { 'run.timestamp': -1, 'receivedAt': -1 } },
   )
 
   // 3) Gather package changes close to that date (±30 days)
   const dt = new Date(date + 'T00:00:00.000Z')
   const from = new Date(dt); from.setUTCDate(from.getUTCDate() - 30)
-  const to   = new Date(dt); to.setUTCDate(to.getUTCDate() + 7)
+  const to = new Date(dt); to.setUTCDate(to.getUTCDate() + 7)
 
   // Find changes by run.timestamp or receivedAt within window
   const changes = await db.collection('changelogs')
     .find({
       'site.id': siteId,
       'site.env': env,
-      $or: [
+      '$or': [
         { 'run.timestamp': { $gte: from.toISOString(), $lte: to.toISOString() } },
-        {  receivedAt:     { $gte: from.toISOString(), $lte: to.toISOString() } },
-      ]
+        { receivedAt: { $gte: from.toISOString(), $lte: to.toISOString() } },
+      ],
     })
-    .sort({ 'run.timestamp': -1, receivedAt: -1 })
+    .sort({ 'run.timestamp': -1, 'receivedAt': -1 })
     .limit(100)
     .toArray()
 
   // Flatten package lists
-  type Row = { type: 'updated'|'added'|'removed'; name: string; old?: string; new?: string }
+  type Row = { type: 'updated' | 'added' | 'removed', name: string, old?: string, new?: string }
   const rows: Row[] = []
   for (const c of changes) {
     if (c?.changes?.updated) {
@@ -99,14 +99,14 @@ export default defineEventHandler(async (event) => {
   }
 
   // Build email HTML
-  const fmt = (d: string) => new Date(d+'T00:00:00Z').toLocaleDateString()
+  const fmt = (d: string) => new Date(d + 'T00:00:00Z').toLocaleDateString()
   const subject = `Maintenance completed — ${site?.name || siteId} (${env}) on ${fmt(date)}`
   const pkgHtml = rows.length
     ? `
       <ul>
-        ${rows.map(r => {
+        ${rows.map((r) => {
           if (r.type === 'updated') return `<li>🔄 <b>${r.name}</b>: ${r.old} → <b>${r.new}</b></li>`
-          if (r.type === 'added')   return `<li>➕ <b>${r.name}</b>: <b>${r.new}</b></li>`
+          if (r.type === 'added') return `<li>➕ <b>${r.name}</b>: <b>${r.new}</b></li>`
           return `<li>➖ <b>${r.name}</b>: ${r.old}</li>`
         }).join('')}
       </ul>
@@ -114,41 +114,51 @@ export default defineEventHandler(async (event) => {
     : '<p>No package changes found in the last 30 days.</p>'
 
   // Build latest changelog section
-  const latestChangelogHtml = latestChangelog ? `
+  const latestChangelogHtml = latestChangelog
+    ? `
     <h3 style="margin:16px 0 8px">Latest Changelog</h3>
     <div style="background:#f8f9fa;padding:12px;border-radius:4px;margin:8px 0">
       <p style="margin:0 0 8px;font-size:14px">
         <b>Run:</b> ${latestChangelog.run?.timestamp ? new Date(latestChangelog.run.timestamp).toLocaleString() : 'N/A'}<br/>
-        <b>Commit:</b> ${latestChangelog.run?.commit?.slice(0,8) || 'N/A'}<br/>
+        <b>Commit:</b> ${latestChangelog.run?.commit?.slice(0, 8) || 'N/A'}<br/>
         ${latestChangelog.run?.branch ? `<b>Branch:</b> ${latestChangelog.run.branch}<br/>` : ''}
       </p>
-      ${latestChangelog.changes ? `
+      ${latestChangelog.changes
+        ? `
         <div style="font-size:13px">
-          ${latestChangelog.changes.updated?.length ? `
+          ${latestChangelog.changes.updated?.length
+            ? `
             <p style="margin:4px 0"><b>Updated (${latestChangelog.changes.updated.length}):</b></p>
             <ul style="margin:0;padding-left:16px">
               ${latestChangelog.changes.updated.slice(0, 10).map((pkg: any) => `<li>${pkg.name}: ${pkg.old} → ${pkg.new}</li>`).join('')}
               ${latestChangelog.changes.updated.length > 10 ? `<li><i>... and ${latestChangelog.changes.updated.length - 10} more</i></li>` : ''}
             </ul>
-          ` : ''}
-          ${latestChangelog.changes.added?.length ? `
+          `
+            : ''}
+          ${latestChangelog.changes.added?.length
+            ? `
             <p style="margin:4px 0"><b>Added (${latestChangelog.changes.added.length}):</b></p>
             <ul style="margin:0;padding-left:16px">
               ${latestChangelog.changes.added.slice(0, 5).map((pkg: any) => `<li>${pkg.name}: ${pkg.new}</li>`).join('')}
               ${latestChangelog.changes.added.length > 5 ? `<li><i>... and ${latestChangelog.changes.added.length - 5} more</i></li>` : ''}
             </ul>
-          ` : ''}
-          ${latestChangelog.changes.removed?.length ? `
+          `
+            : ''}
+          ${latestChangelog.changes.removed?.length
+            ? `
             <p style="margin:4px 0"><b>Removed (${latestChangelog.changes.removed.length}):</b></p>
             <ul style="margin:0;padding-left:16px">
               ${latestChangelog.changes.removed.slice(0, 5).map((pkg: any) => `<li>${pkg.name}: ${pkg.old}</li>`).join('')}
               ${latestChangelog.changes.removed.length > 5 ? `<li><i>... and ${latestChangelog.changes.removed.length - 5} more</i></li>` : ''}
             </ul>
-          ` : ''}
+          `
+            : ''}
         </div>
-      ` : '<p style="margin:0;color:#666;font-size:13px">No package changes in latest run.</p>'}
+      `
+        : '<p style="margin:0;color:#666;font-size:13px">No package changes in latest run.</p>'}
     </div>
-  ` : ''
+  `
+    : ''
 
   const html = `
     <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
@@ -171,7 +181,7 @@ export default defineEventHandler(async (event) => {
     await sendMail({
       to: recipient,
       subject,
-      html
+      html,
     })
   }
 
@@ -180,7 +190,7 @@ export default defineEventHandler(async (event) => {
     await sendMail({
       to: siteDoc.groupEmail,
       subject,
-      html
+      html,
     })
   }
 
@@ -191,6 +201,6 @@ export default defineEventHandler(async (event) => {
     to: recipient || null,
     groupEmail: siteDoc?.groupEmail || null,
     packageRows: rows.length,
-    latestChangelogIncluded: !!latestChangelog
+    latestChangelogIncluded: !!latestChangelog,
   }
 })

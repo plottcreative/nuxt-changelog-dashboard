@@ -48,10 +48,10 @@ export default defineEventHandler(async (event) => {
       renewMonth: site.renewMonth,
       websiteUrl: site.websiteUrl || null,
       gitUrl: site.gitUrl || null,
-      groupEmail: site.groupEmail ?? null,   // <-- the field in question
+      groupEmail: site.groupEmail ?? null, // <-- the field in question
       primaryContact,
-      contacts
+      contacts,
     },
-    items
+    items,
   }
 })

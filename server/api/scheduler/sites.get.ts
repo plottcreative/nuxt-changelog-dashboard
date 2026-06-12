@@ -62,10 +62,10 @@ export default defineEventHandler(async (event) => {
       renewMonth: site.renewMonth,
       websiteUrl: site.websiteUrl || null,
       gitUrl: site.gitUrl || null,
-      groupEmail: site.groupEmail || null,   // ← include this
-      primaryContact,                        // legacy back-compat
-      contacts                               // include normalized contacts
+      groupEmail: site.groupEmail || null, // ← include this
+      primaryContact, // legacy back-compat
+      contacts, // include normalized contacts
     },
-    items
+    items,
   }
 })

@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     cascades = {
       notes: notesRes.deletedCount || 0,
       changelogs: changelogsRes.deletedCount || 0,
-      formLogs: formLogsRes.deletedCount || 0
+      formLogs: formLogsRes.deletedCount || 0,
     }
   }
 
@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
     deleted: {
       site: siteRes.deletedCount || 0,
       maintenance: maintRes.deletedCount || 0,
-      ...cascades
-    }
+      ...cascades,
+    },
   }
 })

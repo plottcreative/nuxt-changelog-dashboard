@@ -63,7 +63,8 @@ export default defineEventHandler(async (event) => {
 
   // 3) Parse & validate
   let parsed: unknown
-  try { parsed = JSON.parse(raw) } catch { throw createError({ statusCode: 400, statusMessage: 'Invalid JSON' }) }
+  try { parsed = JSON.parse(raw) }
+  catch { throw createError({ statusCode: 400, statusMessage: 'Invalid JSON' }) }
   const result = changelogSchema.safeParse(parsed)
   if (!result.success) {
     throw createError({ statusCode: 422, statusMessage: 'Invalid payload', data: result.error.flatten() })
@@ -73,7 +74,7 @@ export default defineEventHandler(async (event) => {
   const db = await getDb()
   await db.collection('changelogs').insertOne({
     ...result.data,
-    receivedAt: new Date()
+    receivedAt: new Date(),
   })
 
   return { ok: true }

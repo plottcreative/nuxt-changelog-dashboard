@@ -3,7 +3,7 @@ import { defineEventHandler, readBody, createError } from 'h3'
 import { checkHeaderHasClass } from '../../utils/ping-static'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ url?: string; className?: string; timeoutMs?: number }>(event)
+  const body = await readBody<{ url?: string, className?: string, timeoutMs?: number }>(event)
   const url = (body?.url || '').trim()
   if (!url) throw createError({ statusCode: 400, statusMessage: 'Missing url' })
 
@@ -19,6 +19,6 @@ export default defineEventHandler(async (event) => {
     statusText: res.status ? String(res.status) : undefined, // Puppeteer has no statusText
     timeMs: res.timeMs,
     hasMaintainClass: res.hasMaintainClass,
-    error: res.ok ? undefined : res.error
+    error: res.ok ? undefined : res.error,
   }
 })

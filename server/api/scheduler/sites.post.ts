@@ -4,13 +4,13 @@ import { getDb } from '../../utils/mongo'
 import { addMonths, firstOfMonthUTC, lastOfMonthUTC, lastWeekdayOfMonthUTC, addMonthsEndOfMonth, toISODate } from '../../utils/date'
 import { requireRole } from '../../utils/session'
 
-type MaintStatus =
-  | 'To-Do'
-  | 'In Progress'
-  | 'Awaiting Form Conf'
-  | 'Chased Via Email'
-  | 'Chased Via Phone'
-  | 'Completed'
+type MaintStatus
+  = | 'To-Do'
+    | 'In Progress'
+    | 'Awaiting Form Conf'
+    | 'Chased Via Email'
+    | 'Chased Via Phone'
+    | 'Completed'
 
 function coerceRenewMonth(m?: any): number {
   const n = Number(m)
@@ -41,13 +41,13 @@ type SanitizedContact = {
 function sanitizeContacts(input: any): SanitizedContact[] {
   if (!Array.isArray(input)) return []
   return input.map((c) => {
-    const name  = (c?.name ?? '').toString().trim()
+    const name = (c?.name ?? '').toString().trim()
     const title = (c?.title ?? '').toString().trim() || null
     const emails = Array.isArray(c?.emails)
       ? c.emails.map(normalizeEmail).filter(Boolean)
       : (c?.email ? [normalizeEmail(c.email)] : [])
     const phones = Array.isArray(c?.phones)
-      ? c.phones.map((p:any) => (p ?? '').toString().trim()).filter(Boolean)
+      ? c.phones.map((p: any) => (p ?? '').toString().trim()).filter(Boolean)
       : (c?.phone ? [(c.phone ?? '').toString().trim()] : [])
     return { name, title, emails, phones }
   }).filter(c => c.name || c.title || c.emails.length || c.phones.length)
@@ -60,32 +60,32 @@ export default defineEventHandler(async (event) => {
   const id = (body?.id || '').trim()
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing site id' })
 
-  const name       = (body?.name || id).trim()
-  const env        = (body?.env || 'production').trim()
+  const name = (body?.name || id).trim()
+  const env = (body?.env || 'production').trim()
   const renewMonth = coerceRenewMonth(body?.renewMonth)
 
   // Optionals (normalized)
   const websiteUrl = normalizeUrl(typeof body?.websiteUrl === 'string' ? body.websiteUrl : '')
-  const gitUrl     = normalizeUrl(typeof body?.gitUrl === 'string' ? body.gitUrl : '')
+  const gitUrl = normalizeUrl(typeof body?.gitUrl === 'string' ? body.gitUrl : '')
   const groupEmail = typeof body?.groupEmail === 'string' ? normalizeEmail(body.groupEmail) : ''
 
   const primaryContact = body?.primaryContact && typeof body.primaryContact === 'object'
     ? {
-        name:  (body.primaryContact.name  || '').trim(),
+        name: (body.primaryContact.name || '').trim(),
         email: normalizeEmail(body.primaryContact.email),
         phone: (body.primaryContact.phone || '').trim(),
-        title: (body.primaryContact.title || '').toString().trim() || undefined
+        title: (body.primaryContact.title || '').toString().trim() || undefined,
       }
     : null
 
   const contacts = sanitizeContacts(body?.contacts)
 
   // Window & rebuild
-  const rebuild        = !!body?.rebuild
+  const rebuild = !!body?.rebuild
   const backfillMonths = Math.max(0, Math.min(60, Number(body?.backfillMonths ?? 12)))
-  const forwardMonths  = Math.max(0, Math.min(60, Number(body?.forwardMonths  ?? 14)))
+  const forwardMonths = Math.max(0, Math.min(60, Number(body?.forwardMonths ?? 14)))
 
-  const db  = await getDb()
+  const db = await getDb()
   const now = new Date()
 
   // Upsert site + clear explicitly empty optionals
@@ -125,21 +125,21 @@ export default defineEventHandler(async (event) => {
 
   // ----- Build generation window -----
   const thisMonthStart = firstOfMonthUTC(now.getUTCFullYear(), now.getUTCMonth())
-  const windowStart    = addMonths(thisMonthStart, -backfillMonths)
-  const windowEnd      = addMonths(thisMonthStart,  forwardMonths)
-  const stop           = firstOfMonthUTC(windowEnd.getUTCFullYear(), windowEnd.getUTCMonth() + 1)
+  const windowStart = addMonths(thisMonthStart, -backfillMonths)
+  const windowEnd = addMonths(thisMonthStart, forwardMonths)
+  const stop = firstOfMonthUTC(windowEnd.getUTCFullYear(), windowEnd.getUTCMonth() + 1)
 
   // ----- Indices -----
-  const rIdx      = (renewMonth - 1 + 12) % 12
-  const preIdx    = (rIdx - 2 + 12) % 12
+  const rIdx = (renewMonth - 1 + 12) % 12
+  const preIdx = (rIdx - 2 + 12) % 12
   const reportIdx = (rIdx - 1 + 12) % 12
-  const midIdx    = (preIdx + 6) % 12
+  const midIdx = (preIdx + 6) % 12
 
   // Helpers
-  const planned: Array<{ date: string, kind: 'maintenance'|'report', labels: any }> = []
+  const planned: Array<{ date: string, kind: 'maintenance' | 'report', labels: any }> = []
   const ops: Promise<any>[] = []
 
-  const upsertItem = (d: Date, kind: 'maintenance'|'report', labels: any) => {
+  const upsertItem = (d: Date, kind: 'maintenance' | 'report', labels: any) => {
     const dateISO = toISODate(d)
     const ev = {
       site: { id, name, env },
@@ -149,15 +149,15 @@ export default defineEventHandler(async (event) => {
       status: 'To-Do' as MaintStatus,
       createdAt: now,
       updatedAt: now,
-      statusHistory: [{ at: now, status: 'To-Do' as MaintStatus }]
+      statusHistory: [{ at: now, status: 'To-Do' as MaintStatus }],
     }
     planned.push({ date: dateISO, kind, labels })
     ops.push(
       db.collection('maintenance').updateOne(
-        { 'site.id': id, 'site.env': env, date: dateISO },
+        { 'site.id': id, 'site.env': env, 'date': dateISO },
         rebuild ? { $set: ev } : { $setOnInsert: ev },
-        { upsert: true }
-      )
+        { upsert: true },
+      ),
     )
   }
 
@@ -192,13 +192,13 @@ export default defineEventHandler(async (event) => {
       gitUrl: savedSite?.gitUrl || null,
       primaryContact: savedSite?.primaryContact || null,
       groupEmail: savedSite?.groupEmail || null,
-      contacts: savedSite?.contacts || []
+      contacts: savedSite?.contacts || [],
     },
     scheduleWindow: {
       from: toISODate(windowStart),
-      to:   toISODate(windowEnd),
-      count: planned.length
+      to: toISODate(windowEnd),
+      count: planned.length,
     },
-    dates: planned
+    dates: planned,
   }
 })

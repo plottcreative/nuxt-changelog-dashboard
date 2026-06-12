@@ -36,7 +36,8 @@ function decodeSession(token: string | undefined | null): any | null {
   if (!token || typeof token !== 'string' || !token.includes('.')) return null
   const [payload, sig] = token.split('.')
   if (sig !== sign(payload)) return null
-  try { return JSON.parse(unb64u(payload)) } catch { return null }
+  try { return JSON.parse(unb64u(payload)) }
+  catch { return null }
 }
 
 /** Public helpers */

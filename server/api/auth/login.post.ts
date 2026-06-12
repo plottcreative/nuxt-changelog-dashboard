@@ -17,7 +17,8 @@ export default defineEventHandler(async (event) => {
     if (stored === password) {
       stored = hashPassword(password)
       await db.collection('users').updateOne({ _id: user._id }, { $set: { passwordHash: stored }, $unset: { password: '' } })
-    } else {
+    }
+    else {
       stored = null
     }
   }

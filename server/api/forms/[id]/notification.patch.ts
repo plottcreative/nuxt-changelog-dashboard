@@ -20,17 +20,18 @@ export default defineEventHandler(async (event) => {
 
   // Prepare update object
   const updateData: any = {}
-  
+
   if (notificationRecipient !== undefined) {
     updateData.notificationRecipient = notificationRecipient || null
   }
-  
+
   if (notificationDate !== undefined) {
     if (notificationDate) {
       // Convert to ISO string if it's a valid date
       const date = new Date(notificationDate)
       updateData.notificationDate = date.toISOString()
-    } else {
+    }
+    else {
       updateData.notificationDate = null
     }
   }
@@ -42,25 +43,26 @@ export default defineEventHandler(async (event) => {
   try {
     const result = await formLogsCol.updateOne(
       { _id: new ObjectId(formLogId) },
-      { $set: updateData }
+      { $set: updateData },
     )
 
     if (result.matchedCount === 0) {
       throw createError({ statusCode: 404, statusMessage: 'Form log not found' })
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       updated: updateData,
-      message: 'Notification data updated successfully' 
+      message: 'Notification data updated successfully',
     }
-  } catch (error) {
+  }
+  catch (error) {
     if (error.statusCode) throw error
-    
+
     console.error('Failed to update notification data:', error)
-    throw createError({ 
-      statusCode: 500, 
-      statusMessage: 'Failed to update notification data' 
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to update notification data',
     })
   }
 })

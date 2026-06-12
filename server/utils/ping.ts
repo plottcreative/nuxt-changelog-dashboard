@@ -32,7 +32,7 @@ function hasClassToken(fragment: string, className: string): boolean {
 
 export async function pingForHeaderClass(
   rawUrl: string,
-  opts?: { className?: string; timeoutMs?: number }
+  opts?: { className?: string, timeoutMs?: number },
 ): Promise<HeaderPingResult> {
   const url = normalizeUrl(rawUrl)
   const className = (opts?.className || 'plott-maintain').trim()
@@ -72,7 +72,8 @@ export async function pingForHeaderClass(
       timeMs,
       hasMaintainClass,
     }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     const timeMs = Date.now() - started
     clearTimeout(timer)
     return {

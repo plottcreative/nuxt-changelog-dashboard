@@ -8,24 +8,24 @@ export default defineEventHandler(async (event) => {
   const site = (q.site as string || '').trim()
   if (!site) throw createError({ statusCode: 400, statusMessage: 'Missing required query: site' })
 
-  const env    = (q.env as string | undefined)?.trim()
+  const env = (q.env as string | undefined)?.trim()
   const emailQ = (q.email as string | undefined)?.trim()
-  let limit    = Number(q.limit ?? 20); if (!Number.isFinite(limit) || limit < 1) limit = 20; if (limit > 200) limit = 200
+  let limit = Number(q.limit ?? 20); if (!Number.isFinite(limit) || limit < 1) limit = 20; if (limit > 200) limit = 200
 
   const fromStr = (q.from as string | undefined)?.trim()
-  const toStr   = (q.to as string | undefined)?.trim()
-  const fromDt  = fromStr ? new Date(fromStr) : undefined
-  const toDt    = toStr ? new Date(toStr) : undefined
+  const toStr = (q.to as string | undefined)?.trim()
+  const fromDt = fromStr ? new Date(fromStr) : undefined
+  const toDt = toStr ? new Date(toStr) : undefined
 
-  const db  = await getDb()                 // uses MONGODB_URI + MONGODB_DB
-  const col = db.collection('form_logs')    // your collection name
+  const db = await getDb() // uses MONGODB_URI + MONGODB_DB
+  const col = db.collection('form_logs') // your collection name
 
   // Base filter (INDEX-FRIENDLY)
   const baseMatch: any = {
-    _kind: 'gf_submission',
+    '_kind': 'gf_submission',
     'site.id': site,
   }
-  if (env)   baseMatch['site.env'] = env
+  if (env) baseMatch['site.env'] = env
   if (emailQ) baseMatch['entry.email'] = emailQ.toLowerCase() // we store lowercased emails
 
   const pipeline: any[] = [
@@ -40,10 +40,10 @@ export default defineEventHandler(async (event) => {
             { $ifNull: [
               '$createdAt',
               '$receivedAt',
-            ] }
-          ]
-        }
-      }
+            ] },
+          ],
+        },
+      },
     },
   ]
 
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
   if (fromDt || toDt) {
     const cond: any = {}
     if (fromDt) cond.$gte = fromDt
-    if (toDt)   cond.$lte = toDt
+    if (toDt) cond.$lte = toDt
     pipeline.push({ $match: { _when: cond } })
   }
 
@@ -73,15 +73,15 @@ export default defineEventHandler(async (event) => {
             $dateToString: {
               date: { $ifNull: ['$createdAt', '$receivedAt'] },
               format: '%Y-%m-%dT%H:%M:%S.%LZ',
-              timezone: 'UTC'
-            }
-          }
+              timezone: 'UTC',
+            },
+          },
         },
         receivedAt: {
-          $dateToString: { date: '$receivedAt', format: '%Y-%m-%dT%H:%M:%S.%LZ', timezone: 'UTC' }
-        }
-      }
-    }
+          $dateToString: { date: '$receivedAt', format: '%Y-%m-%dT%H:%M:%S.%LZ', timezone: 'UTC' },
+        },
+      },
+    },
   )
 
   const docs = await col.aggregate(pipeline).toArray()

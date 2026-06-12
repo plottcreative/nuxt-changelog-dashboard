@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const noteId = event.context.params?.noteId as string
 
   const db = await getDb()
-  const note = await db.collection('notes').findOne({ _id: new ObjectId(noteId), 'site.id': siteId })
+  const note = await db.collection('notes').findOne({ '_id': new ObjectId(noteId), 'site.id': siteId })
   if (!note) throw createError({ statusCode: 404, statusMessage: 'Note not found' })
 
   const isOwner = String(note.author?.id) === String(userId)
